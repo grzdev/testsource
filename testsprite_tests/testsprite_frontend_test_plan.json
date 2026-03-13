@@ -1,0 +1,1167 @@
+[
+  {
+    "id": "TC001",
+    "title": "Successful repo analysis renders full report card sections",
+    "description": "Verifies that submitting a valid GitHub repository URL in Repo mode shows loading state and then a complete ReportCard with all expected sections.",
+    "category": "Repo Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab to select repo mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js\" into the repository URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"loading skeleton\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Repo Summary\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Final Verdict\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Report card includes workflow and pre-flight checklist sections",
+    "description": "Verifies that a completed analysis shows the Recommended Workflow and Pre-flight Checklist sections in the results.",
+    "category": "Repo Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab to select repo mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/facebook/react\" into the repository URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"loading skeleton\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Recommended Workflow\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Pre-flight Checklist\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Invalid GitHub URL shows validation error",
+    "description": "Verifies that submitting an invalid string in Repo mode displays an \"Invalid GitHub URL\" error message.",
+    "category": "Repo Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab to select repo mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"not a url\" into the repository URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invalid GitHub URL\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"loading skeleton\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Non-existent repo URL shows Repo not found error",
+    "description": "Verifies that submitting a well-formed but non-existent repo URL shows a loading state and then a \"Repo not found\" error message.",
+    "category": "Repo Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab to select repo mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/this-owner-should-not-exist-12345/this-repo-should-not-exist-12345\" into the repository URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"loading skeleton\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Repo not found\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Repo Summary\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "URL with trailing slash is accepted and produces results",
+    "description": "Verifies that a well-formed GitHub repo URL including a trailing slash is accepted and analysis renders report results.",
+    "category": "Repo Analysis",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab to select repo mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js/\" into the repository URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"loading skeleton\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Repo Health\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Contributor Readiness\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "GitHub URL with extra path segments is rejected as invalid",
+    "description": "Verifies that a GitHub URL that is not a repository root (e.g., points to a subpage) is rejected with an invalid URL message.",
+    "category": "Repo Analysis",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab to select repo mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js/issues\" into the repository URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invalid GitHub URL\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "PR mode: Analyze a valid PR URL and render full PR report card sections",
+    "description": "Verifies that a valid GitHub pull request URL can be analyzed and the PR report card, workflow recommendation, and preflight checklist are displayed.",
+    "category": "PR Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab to select PR mode"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Pull Request\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/owner/repo/pull/123\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"loading skeleton\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"PRReportCard\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Pre-flight Checklist\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "PR mode: Repo URL entered instead of PR URL shows format error",
+    "description": "Verifies that entering a repository URL in PR mode results in a clear validation error indicating a PR URL is required.",
+    "category": "PR Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab to select PR mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/owner/repo\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"PR URL is required\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"PRReportCard\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "PR mode: Missing PR returns not found error",
+    "description": "Verifies that a well-formed PR URL that does not exist results in a \"Pull request not found\" error state after loading.",
+    "category": "PR Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab to select PR mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/owner/repo/pull/999999\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"loading skeleton\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Pull request not found\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"PRReportCard\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "PR mode: Required report sections are visible after a successful analysis",
+    "description": "Verifies the presence of key PR report sections: metadata, focus type, changed areas, workflow section, and preflight checklist.",
+    "category": "PR Analysis",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab to select PR mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/owner/repo/pull/123\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"PRReportCard\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Focus\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Changed\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Recommended Workflow\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "PR mode: Clearing and re-submitting with a different PR URL updates the displayed result",
+    "description": "Verifies that running analysis again replaces prior results (or error state) with the newest run’s visible outcome.",
+    "category": "PR Analysis",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab to select PR mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/owner/repo/pull/123\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"PRReportCard\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/owner/repo/pull/999999\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Pull request not found\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Analyze a valid GitHub issue URL and view the full IssueReportCard",
+    "description": "Verifies a user can analyze an issue URL and see the IssueReportCard sections rendered.",
+    "category": "Issue Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab to select issue mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/octocat/Hello-World/issues/1\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"loading skeleton\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Issue Summary\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Work Status\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Final Recommendation\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Reject a Pull Request URL when in Issue mode",
+    "description": "Verifies the app shows a format-specific error when a PR URL is submitted in Issue mode.",
+    "category": "Issue Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab to select issue mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/octocat/Hello-World/pull/1\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"pull request\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"issue\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Show \"Issue not found\" for a well-formed but non-existent issue URL",
+    "description": "Verifies the app handles a 404-style result by showing an Issue not found error message.",
+    "category": "Issue Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab to select issue mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/octocat/Hello-World/issues/999999\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"loading skeleton\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Issue not found\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Validate required input: Analyze with an empty Issue URL",
+    "description": "Verifies the app prevents submission (or shows an error) when the input is empty in Issue mode.",
+    "category": "Issue Analysis",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab to select issue mode"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"invalid\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"URL\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Validate input format: non-GitHub URL in Issue mode",
+    "description": "Verifies the app shows an invalid URL/format error when a non-GitHub link is submitted.",
+    "category": "Issue Analysis",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab to select issue mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://example.com/not-github\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"invalid\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"GitHub\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Validate input format: GitHub repo URL (missing /issues/<number>) in Issue mode",
+    "description": "Verifies the app detects a GitHub URL that is not an issue URL and shows a clear format error.",
+    "category": "Issue Analysis",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab to select issue mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/octocat/Hello-World\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"issue\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"URL\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Successful Issue analysis shows all four expected report sections",
+    "description": "Verifies the IssueReportCard includes Issue Summary, Work Status, Issue Quality, and Final Recommendation sections on success.",
+    "category": "Issue Analysis",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab to select issue mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/octocat/Hello-World/issues/1\" into the input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button to submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Issue Summary\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Work Status\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Issue Quality\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Final Recommendation\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Switch among Repo, Pull Request, and Issue tabs updates mode-specific UI affordances",
+    "description": "Verifies that selecting each mode updates visible input placeholder and the Analyze button styling/affordance for that mode.",
+    "category": "Mode Toggle",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the input placeholder indicates a repository URL is expected"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the input placeholder indicates a pull request URL is expected"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the input placeholder indicates an issue URL is expected"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Switching from PR mode to Repo mode clears visible analysis results",
+    "description": "Verifies that after PR results are shown, switching modes removes the prior report content and shows repo-mode UI instead.",
+    "category": "Mode Toggle",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js/pull/1\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a loading indicator or loading skeleton is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify analysis results content is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the PR analysis results content is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "Switching from PR mode to Repo mode updates placeholder to repo mode after clearing",
+    "description": "Verifies that mode switch both clears previous results and updates visible input guidance to repo mode.",
+    "category": "Mode Toggle",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js/pull/1\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify analysis results content is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the input placeholder indicates a repository URL is expected"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify analysis results content is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "Immediately switching modes after submitting Issue analysis clears previous mode report area",
+    "description": "Verifies that switching modes right after clicking Analyze does not leave Issue report content visible in the new mode.",
+    "category": "Mode Toggle",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js/issues/1\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Analyze\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the input placeholder indicates a repository URL is expected"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify issue analysis results content is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "Mode toggle does not navigate away from the main page route",
+    "description": "Verifies that switching tabs is an in-page state change and the app remains on the main route.",
+    "category": "Mode Toggle",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      }
+    ]
+  },
+  {
+    "id": "TC024",
+    "title": "Repeated toggling between modes remains stable and consistently updates the placeholder",
+    "description": "Verifies that quick repeated mode switches continue to reflect the currently selected mode in the visible placeholder text.",
+    "category": "Mode Toggle",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the input placeholder indicates an issue URL is expected"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Pull Request\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the input placeholder indicates a pull request URL is expected"
+      }
+    ]
+  },
+  {
+    "id": "TC025",
+    "title": "Switching modes clears any visible report card content even without running analysis in the new mode",
+    "description": "Verifies that after results are shown in one mode, switching to another mode hides the report area and shows only the new mode’s input guidance.",
+    "category": "Mode Toggle",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Repo\" tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify analysis results content is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Issue\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the repo analysis results content is not visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the input placeholder indicates an issue URL is expected"
+      }
+    ]
+  },
+  {
+    "id": "TC026",
+    "title": "Repo mode: valid repository URL shows loading state then renders report card",
+    "description": "Verifies a valid GitHub repository URL in Repo mode triggers analysis, shows loading feedback, and displays a structured report card on success.",
+    "category": "Input Validation and Error Handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Repo\" mode tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an analysis loading indicator or skeleton is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a structured results/report section is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC027",
+    "title": "PR mode: valid pull request URL shows loading state then renders report card",
+    "description": "Verifies a valid GitHub pull request URL in PR mode triggers analysis, shows loading feedback, and displays results on success.",
+    "category": "Input Validation and Error Handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"PR\" mode tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js/pull/1\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an analysis loading indicator or skeleton is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a structured results/report section is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC028",
+    "title": "Issue mode: valid issue URL shows loading state then renders report card",
+    "description": "Verifies a valid GitHub issue URL in Issue mode triggers analysis, shows loading feedback, and displays results on success.",
+    "category": "Input Validation and Error Handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Issue\" mode tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js/issues/1\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an analysis loading indicator or skeleton is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a structured results/report section is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC029",
+    "title": "Any mode: non-GitHub URL shows \"Invalid GitHub URL\" validation error",
+    "description": "Verifies the UI blocks non-GitHub URLs and shows a clear invalid URL message.",
+    "category": "Input Validation and Error Handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click any mode tab (Repo, PR, or Issue)"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://example.com/not-github\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invalid GitHub URL\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC030",
+    "title": "Repo mode: PR URL entered shows repo-format error",
+    "description": "Verifies entering a pull request URL while Repo mode is selected produces a repo-specific format error message.",
+    "category": "Input Validation and Error Handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Repo\" mode tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js/pull/1\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text indicating a repository URL is required is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC031",
+    "title": "PR mode: Issue URL entered shows PR-format error",
+    "description": "Verifies entering an issue URL while PR mode is selected produces a PR-specific format error message.",
+    "category": "Input Validation and Error Handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"PR\" mode tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js/issues/1\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text indicating a pull request URL is required is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC032",
+    "title": "Issue mode: PR URL entered shows \"That URL points to a pull request\" error",
+    "description": "Verifies entering a pull request URL in Issue mode shows the specific mismatch message (or equivalent) that it is a PR, not an issue.",
+    "category": "Input Validation and Error Handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Issue\" mode tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/vercel/next.js/pull/1\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"That URL points to a pull request\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC033",
+    "title": "Missing resource: non-existent repo URL shows a \"not found\" error message",
+    "description": "Verifies a validly-formatted GitHub URL that points to a missing resource results in a clear not-found error message.",
+    "category": "Input Validation and Error Handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Repo\" mode tab"
+      },
+      {
+        "type": "action",
+        "description": "Type \"https://github.com/this-org-should-not-exist-1234567890/this-repo-should-not-exist\" into the GitHub URL input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Analyze\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text containing \"not found\" is visible"
+      }
+    ]
+  }
+]

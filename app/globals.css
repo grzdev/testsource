@@ -1,26 +1,143 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* ── Background grid texture ──────────────────────────────── */
+.bg-grid {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -5%,  rgba(16, 185, 129, 0.09) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 30% at 80% 80%,  rgba(139, 92, 246, 0.04) 0%, transparent 60%),
+    linear-gradient(rgba(255,255,255,0.016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.016) 1px, transparent 1px);
+  background-size: auto, auto, 44px 44px, 44px 44px;
+}
+
+/* ── Card elevation hover ─────────────────────────────────── */
+.card-hover {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px) scale(1.005);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* ── Entrance animations ─────────────────────────────────── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Badge glow + float ───────────────────────────────────── */
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-2px) rotate(6deg); }
+}
+
+.badge-glow {
+  box-shadow:
+    0 0 10px  rgba(16,185,129,0.45),
+    0 0 24px  rgba(16,185,129,0.20),
+    0 0 48px  rgba(16,185,129,0.08),
+    inset 0 0  8px rgba(16,185,129,0.12);
+  border-color: rgba(16,185,129,0.70);
+}
+
+/* Both classes present: run bounce only */
+.badge-glow.badge-bounce {
+  animation: badgeBounce 0.5s ease-out;
+}
+
+.badge-icon-float {
+  animation: iconFloat 2.8s ease-in-out infinite;
+}
+
+/* Bounce once after popping in */
+@keyframes badgeBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.12); }
+  50%  { transform: scale(0.95); }
+  70%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.badge-bounce {
+  animation: badgeBounce 0.5s ease-out;
+}
+
+.card-in {
+  animation: fadeSlideUp 0.32s ease-out both;
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out both;
+}
+
+.delay-0  { animation-delay: 0ms; }
+.delay-1  { animation-delay: 60ms; }
+.delay-2  { animation-delay: 120ms; }
+.delay-3  { animation-delay: 180ms; }
+.delay-4  { animation-delay: 240ms; }
+.delay-5  { animation-delay: 300ms; }
+.delay-6  { animation-delay: 360ms; }
+.delay-7  { animation-delay: 420ms; }
+.delay-8  { animation-delay: 480ms; }
+
+/* ── Skeleton shimmer ─────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 59, 1) 25%,
+    rgba(40, 55, 80, 0.9) 50%,
+    rgba(30, 41, 59, 1) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* ── Copy feedback ────────────────────────────────────────── */
+@keyframes copyPop {
+  0%   { opacity: 0; transform: scale(0.85) translateY(2px); }
+  20%  { opacity: 1; transform: scale(1) translateY(0); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.copy-pop {
+  animation: copyPop 1.6s ease-out forwards;
+}
+
+/* ── Verdict accent ───────────────────────────────────────── */
+.verdict-card {
+  border-width: 1.5px;
+}
+
+/* ── Scroll-reveal base state (JS controls transition) ─────── */
+[data-reveal] {
+  will-change: opacity, transform;
 }

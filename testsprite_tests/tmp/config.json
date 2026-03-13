@@ -1,0 +1,18 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "executionArgs": {
+    "projectName": "testproof",
+    "projectPath": "c:\\Users\\raiden\\Documents\\Hackathons\\testproof",
+    "testIds": [],
+    "additionalInstruction": "",
+    "serverMode": "production",
+    "envs": {
+      "API_KEY": "sk-user-jbkt8XDUfm-z6XaFBch4f5aaL0B9SgAXNQ1VIsdNZJPIrn0JsgmGCwGnT51tof-1ZRAvzM8qb-zZ7wJsWcT-vXm3-8oKx93F17NnBPA0vrfDDEi6MUafe5ARZdzH7y2qbe0"
+    }
+  },
+  "serverPort": 65417,
+  "proxy": "http://4eea0188-5793-4ae0-a57b-9a708ec80ccf:rdEzHcRAbg7hQc34e8EBRJiPNc1PHqFs@tun.testsprite.com:8080"
+}

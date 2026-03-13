@@ -1,0 +1,140 @@
+version: "2"
+type: frontend
+tech_stack:
+  - language: TypeScript
+  - framework: Next.js 16 (App Router)
+  - ui_library: React 19, Tailwind CSS v4, lucide-react
+  - other: GitHub REST API (server-side), Turbopack
+routes:
+  - path: /
+    file: app/page.tsx
+    auth_required: false
+    description: Main single-page app with mode toggle (Repo / PR / Issue) and analysis results
+  - path: /api/analyze
+    file: app/api/analyze/route.ts
+    auth_required: false
+    description: POST endpoint that analyzes a GitHub repository URL for test-readiness and contributor signals
+  - path: /api/analyze-pr
+    file: app/api/analyze-pr/route.ts
+    auth_required: false
+    description: POST endpoint that analyzes a GitHub pull request URL, classifying focus type and generating TestSprite workflow
+  - path: /api/analyze-issue
+    file: app/api/analyze-issue/route.ts
+    auth_required: false
+    description: POST endpoint that analyzes a GitHub issue URL for work status, quality, and recommendation
+features:
+  - name: Repo Analysis
+    description: User enters a GitHub repository URL to evaluate test-readiness, repo health, contributor readiness, and get a TestSprite workflow suggestion
+    files:
+      - app/page.tsx
+      - components/RepoInput.tsx
+      - components/ReportCard.tsx
+      - components/VerdictBadge.tsx
+      - components/WorkflowSection.tsx
+      - components/PreflightChecklist.tsx
+      - app/api/analyze/route.ts
+      - lib/scoring.ts
+      - lib/github.ts
+    entry_route: /
+    user_interactions:
+      - Click "Repo" tab to select repo mode
+      - Paste a GitHub repository URL (e.g. https://github.com/owner/repo) in the input field
+      - Click the "Analyze" button to submit
+      - See loading skeleton while analysis runs
+      - View ReportCard with 7 sections: Repo Summary, Repo Health, Contributor Readiness, TestSprite Readiness, Recommended Workflow, Pre-flight Checklist, Final Verdict
+      - See error message if URL is invalid or repo not found
+    api_calls:
+      - method: POST
+        endpoint: /api/analyze
+    auth_required: false
+  - name: PR Analysis
+    description: User enters a GitHub pull request URL to get PR focus classification, TestSprite workflow recommendation, and preflight checklist
+    files:
+      - app/page.tsx
+      - components/RepoInput.tsx
+      - components/PRReportCard.tsx
+      - components/WorkflowSection.tsx
+      - components/PreflightChecklist.tsx
+      - app/api/analyze-pr/route.ts
+      - lib/scoring.ts
+      - lib/github.ts
+    entry_route: /
+    user_interactions:
+      - Click "Pull Request" tab to select PR mode
+      - Paste a GitHub PR URL (e.g. https://github.com/owner/repo/pull/123) in the input field
+      - Click the "Analyze" button to submit
+      - See loading skeleton while analysis runs
+      - View PRReportCard with PR metadata, focus type, changed areas, workflow section, and preflight checklist
+      - See error message if URL is invalid, PR not found, or a repo URL is accidentally entered
+    api_calls:
+      - method: POST
+        endpoint: /api/analyze-pr
+    auth_required: false
+  - name: Issue Analysis
+    description: User enters a GitHub issue URL to assess work status, quality signals, and get a contributor recommendation
+    files:
+      - app/page.tsx
+      - components/RepoInput.tsx
+      - components/IssueReportCard.tsx
+      - app/api/analyze-issue/route.ts
+      - lib/scoring.ts
+      - lib/github.ts
+    entry_route: /
+    user_interactions:
+      - Click "Issue" tab to select issue mode
+      - Paste a GitHub issue URL (e.g. https://github.com/owner/repo/issues/456) in the input field
+      - Click the "Analyze" button to submit
+      - See loading skeleton while analysis runs
+      - View IssueReportCard with 4 sections: Issue Summary, Work Status, Issue Quality, Final Recommendation
+      - See error message if URL is invalid, issue not found, or a PR URL is accidentally entered in issue mode
+    api_calls:
+      - method: POST
+        endpoint: /api/analyze-issue
+    auth_required: false
+  - name: Mode Toggle
+    description: User can switch between Repo, Pull Request, and Issue analysis modes; switching clears previous results
+    files:
+      - app/page.tsx
+      - components/RepoInput.tsx
+    entry_route: /
+    user_interactions:
+      - Click Repo tab (emerald) to enter repo mode
+      - Click Pull Request tab (violet) to enter PR mode
+      - Click Issue tab (sky blue) to enter issue mode
+      - Observe input placeholder and button color change per mode
+      - Observe previous results cleared on mode switch
+    api_calls: []
+    auth_required: false
+  - name: Input Validation and Error Handling
+    description: All three API routes validate URLs server-side; the UI shows error messages for invalid URLs, wrong mode, 404s, and network failures
+    files:
+      - app/api/analyze/route.ts
+      - app/api/analyze-pr/route.ts
+      - app/api/analyze-issue/route.ts
+      - app/page.tsx
+    entry_route: /
+    user_interactions:
+      - Enter a non-GitHub URL and see "Invalid GitHub URL" error
+      - Enter a PR URL in repo mode and see format error
+      - Enter an issue URL in PR mode and see format error
+      - Enter a PR URL in issue mode and see "That URL points to a pull request" error
+      - Enter a URL for a non-existent repo/PR/issue and see 404 error message
+      - See "Failed to connect to the server" on network failure
+    api_calls:
+      - method: POST
+        endpoint: /api/analyze
+      - method: POST
+        endpoint: /api/analyze-pr
+      - method: POST
+        endpoint: /api/analyze-issue
+    auth_required: false
+known_limitations:
+  - issue: GitHub API requests require a valid GITHUB_TOKEN env var; without it all fetches return 401/403
+    location: lib/github.ts
+    impact: All analysis endpoints will fail if GITHUB_TOKEN is missing or expired
+  - issue: GitHub API rate limiting (60 req/hr unauthenticated, 5000/hr authenticated) can cause analysis to fail under load
+    location: lib/github.ts
+    impact: Concurrent tests hitting real GitHub API may get 403 rate-limit responses
+  - issue: Issue timeline API uses mockingbird-preview header which is a GitHub preview feature
+    location: lib/github.ts
+    impact: Timeline-based work status signals may be unreliable if preview API changes
