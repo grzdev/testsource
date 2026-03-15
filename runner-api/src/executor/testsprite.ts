@@ -242,12 +242,61 @@ export class TestSpriteApp {
     this.checkAuth();
 
     const testPlanText = this.extractText(testPlanRes);
+
+    // The generateCodeAndExecute CLI binary reads this exact path — if the file
+    // is missing it crashes with ENOENT before running any tests.
+    const testPlanJsonPath = path.join(projectPath, "testsprite_tests", "testsprite_frontend_test_plan.json");
+    await fs.mkdir(path.join(projectPath, "testsprite_tests"), { recursive: true });
+
     if (testPlanText && testPlanText.trim().length > 20) {
-      const testPlanPath = path.join(tmpDir, "test_plan.md");
-      await fs.writeFile(testPlanPath, testPlanText);
-      this.log(`Test plan saved → ${testPlanPath}`);
+      // Save the raw response as markdown for debugging
+      await fs.writeFile(path.join(tmpDir, "test_plan.md"), testPlanText);
+      this.log(`Test plan (markdown) saved → ${path.join(tmpDir, "test_plan.md")}`);
     } else {
       this.log("Test plan tool returned no content (non-fatal, continuing).");
+    }
+
+    // Only write if not already self-written by the MCP tool
+    const planAlreadyExists = await fs.access(testPlanJsonPath).then(() => true).catch(() => false);
+    if (!planAlreadyExists) {
+      // Try to extract a JSON array from the tool response (it often returns one)
+      let planJson: unknown = null;
+      if (testPlanText) {
+        // Match a top-level JSON array anywhere in the response
+        const jsonMatch = testPlanText.match(/(\[[\s\S]*\])/);
+        if (jsonMatch) {
+          try { planJson = JSON.parse(jsonMatch[1]); } catch { /* not valid JSON */ }
+        }
+        if (!planJson) {
+          try { planJson = JSON.parse(testPlanText.trim()); } catch { /* not JSON */ }
+        }
+      }
+
+      if (Array.isArray(planJson) && (planJson as unknown[]).length > 0) {
+        await fs.writeFile(testPlanJsonPath, JSON.stringify(planJson, null, 2));
+        this.log(`Test plan JSON saved → ${testPlanJsonPath} (${(planJson as unknown[]).length} cases)`);
+      } else {
+        // Fallback: write a minimal plan so the CLI can boot and generate its own tests
+        const fallbackPlan = [
+          {
+            id: "TC001",
+            title: "Initial application load and core user flows",
+            description: "Verify the application loads correctly and primary user interactions work end-to-end.",
+            category: "General",
+            priority: "High",
+            steps: [
+              { type: "action",    description: "Navigate to the root of the application" },
+              { type: "assertion", description: "Verify the page renders without errors" },
+              { type: "action",    description: "Interact with the primary call-to-action" },
+              { type: "assertion", description: "Verify the expected result of the interaction is visible" },
+            ],
+          },
+        ];
+        await fs.writeFile(testPlanJsonPath, JSON.stringify(fallbackPlan, null, 2));
+        this.log(`Test plan JSON (fallback) saved → ${testPlanJsonPath}`);
+      }
+    } else {
+      this.log(`Test plan JSON already on disk → ${testPlanJsonPath}`);
     }
 
     // ── Stage 4: Generate & Execute ───────────────────────────────────────
