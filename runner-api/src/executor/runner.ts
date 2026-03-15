@@ -367,11 +367,40 @@ export async function runJob(jobId: string): Promise<void> {
 
       // ── Install dependencies ────────────────────────────────────────────
       setStage("Install dependencies");
+      // ── Disk diagnostics ─────────────────────────────────────────────
+      try {
+        const { stdout: dfOut } = await execAsync("df -h / /data 2>/dev/null || df -h /", { timeout: 10_000 });
+        log(`> Disk usage:\n${dfOut.trim()}`);
+        const { stdout: duJobs } = await execAsync("du -sh /data/jobs 2>/dev/null || echo 'n/a'", { timeout: 10_000 });
+        log(`> /data/jobs usage: ${duJobs.trim()}`);
+        const { stdout: duNpm } = await execAsync("du -sh /root/.npm 2>/dev/null || echo 'n/a'", { timeout: 10_000 });
+        log(`> /root/.npm usage: ${duNpm.trim()}`);
+      } catch { /* diagnostics are best-effort */ }
+
+      // Preflight: fail early if free space is below 500 MB
+      try {
+        const { stdout: dfRaw } = await execAsync("df -k / 2>/dev/null | tail -1", { timeout: 5_000 });
+        const freeKb = parseInt(dfRaw.trim().split(/\s+/)[3] ?? "0", 10);
+        if (freeKb > 0 && freeKb < 512_000) {
+          throw new Error(
+            `Runner is low on disk space (${Math.round(freeKb / 1024)} MB free). ` +
+            `Clear caches or increase available storage before retrying.`
+          );
+        }
+      } catch (diskErr: any) {
+        if (diskErr.message.includes('low on disk')) throw diskErr;
+        /* ignore df parse failures */
+      }
+
       log(`> Installing dependencies with ${pm}...`);
+      // Route npm cache inside the job workspace so it gets deleted with the job folder.
+      const npmCacheDir = path.join(jobWorkspaceRoot, ".npm-cache");
       const installEnv: NodeJS.ProcessEnv = {
         ...process.env,
         NODE_ENV: "development",
         CI: "true",
+        NPM_CONFIG_CACHE: npmCacheDir,
+        npm_config_cache: npmCacheDir,
       };
 
       // Helper: run one install attempt and log its full output; returns true on success.
@@ -411,10 +440,19 @@ export async function runJob(jobId: string): Promise<void> {
       }
 
       if (!installOk) {
+        // Check if any logged line contains ENOSPC to surface clearest message.
+        const recentLogs = job.logs.slice(-60).join("\n");
+        const isEnospc = /ENOSPC|no space left/i.test(recentLogs);
+        if (isEnospc) {
+          throw new Error(
+            `Dependency installation failed because the runner ran out of disk space (ENOSPC). ` +
+            `Old job artifacts or npm caches have likely filled the volume. ` +
+            `Retry after storage is freed or increase available disk on the runner.`
+          );
+        }
         throw new Error(
           `Dependency installation failed after all retries (package manager: ${pm}). ` +
-          `See the install stderr above for the root cause. ` +
-          `Common fixes: peer-dependency conflicts, missing registry access, or an unsupported Node version.`
+          `See the install output above for the root cause.`
         );
       }
 
@@ -723,5 +761,9 @@ For every FAILED test, provide in the result:
         log("> Cleaned up.");
       } catch {}
     }
+    // Aggressive cache purge to prevent ENOSPC from accumulating across jobs.
+    try {
+      await execAsync("rm -rf /root/.npm/_npx /root/.npm/_cacache/tmp 2>/dev/null || true", { timeout: 15_000 });
+    } catch { /* best-effort */ }
   }
 }
