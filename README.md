@@ -1,4 +1,4 @@
-# TestSource — Open Source Testing Intelligence for TestSprite
+# TestSource 
 
 **TestSource** is a GitHub intelligence tool that analyzes any public repository, pull request, or issue and instantly tells you whether it is ready to test — and exactly how to test it with [TestSprite](https://testsprite.com).
 
