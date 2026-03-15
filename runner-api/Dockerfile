@@ -30,8 +30,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxtst6 \
   && rm -rf /var/lib/apt/lists/*
 
-# Make all common package managers available globally
-RUN npm install -g pnpm yarn
+# pnpm is not pre-installed; yarn ships with the node image already
+RUN npm install -g pnpm
 
 # ── App ──────────────────────────────────────────────────────────────────────
 WORKDIR /app
