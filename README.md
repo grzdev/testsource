@@ -1,6 +1,6 @@
 # TestSource 
 
-**TestSource** is a GitHub intelligence tool that analyzes any public repository, pull request, or issue and instantly tells you whether it is ready to test — and exactly how to test it with [TestSprite](https://testsprite.com).
+**TestSource** is a GitHub intelligence tool that analyzes any public repository, pull request, or issue and instantly tells you whether it is ready to contribute to and how to test it with [TestSprite](https://testsprite.com).
 
 Paste a GitHub link. Get a structured, signal-driven report in seconds.
 
@@ -58,11 +58,9 @@ Paste an issue URL (e.g. `github.com/facebook/react/issues/28779`) to receive:
 
 ## Key User Flow
 
-1. Open the app and select a mode: **Repo**, **Pull Request**, or **Issue**
-2. Paste a valid GitHub URL into the input field
-3. The app detects the link type, validates it, and calls the appropriate analysis API
-4. A structured report card renders with color-coded signals (pass / warn / fail)
-5. Copy the generated TestSprite prompt and run it directly in TestSprite
+1. Open the app and Paste a valid GitHub URL into the input field
+2. The app detects the link type, validates it, and calls the appropriate analysis API
+3. A structured report card renders with color-coded signals (pass / warn / fail)
 
 ---
 
