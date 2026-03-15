@@ -251,25 +251,58 @@ export async function runJob(jobId: string): Promise<void> {
     log(`> Clone target : ${repoDir}`);
     log(`> Clone source : https://github.com/${owner}/${repo}`);
 
+    const gitEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: "0",
+      GIT_ASKPASS: "echo",
+      GIT_CONFIG_NOSYSTEM: "1",
+      LANG: "C",
+    };
+
+    // ── IPv4 preflight: fast-fail if runner can't reach GitHub ────────────
+    log(`> Preflight: checking connectivity to github.com over IPv4...`);
+    await new Promise<void>((resolve, reject) => {
+      const preflight = spawn(
+        "git",
+        ["-4", "ls-remote", "--exit-code", "--heads", cloneUrl],
+        { env: gitEnv, stdio: ["ignore", "pipe", "pipe"] }
+      );
+      let out = "";
+      const onD = (d: Buffer) => { out += d.toString(); };
+      preflight.stdout.on("data", onD);
+      preflight.stderr.on("data", onD);
+      const t = setTimeout(() => {
+        preflight.kill("SIGKILL");
+        reject(new Error(`Runner cannot reach github.com over IPv4 (ls-remote timed out after 30 s). Check Railway outbound networking.`));
+      }, 30_000);
+      preflight.on("close", (code) => {
+        clearTimeout(t);
+        if (code === 0 || code === 2) { resolve(); return; } // 2 = no branches (empty repo) — still reachable
+        const lower = out.toLowerCase();
+        if (lower.includes("connection timed out") || lower.includes("could not resolve") || lower.includes("unable to access")) {
+          reject(new Error(`Runner cannot reach github.com over IPv4: ${out.trim().slice(0, 300)}. Check Railway outbound networking.`));
+        } else if (lower.includes("not found") || lower.includes("repository not found")) {
+          reject(new Error(`Repository not found: github.com/${owner}/${repo}.`));
+        } else if (lower.includes("authentication") || lower.includes("could not read username")) {
+          reject(new Error(`Git auth failed for github.com/${owner}/${repo}. Check GITHUB_TOKEN.`));
+        } else {
+          reject(new Error(`ls-remote failed (exit ${code}): ${out.trim().slice(0, 300)}`));
+        }
+      });
+    });
+    log(`> Preflight passed.`);
+
     // Use spawn so we stream ALL git output live
     await new Promise<void>((resolve, reject) => {
-      const gitEnv: NodeJS.ProcessEnv = {
-        ...process.env,
-        GIT_TERMINAL_PROMPT: "0",
-        GIT_ASKPASS: "echo",
-        GIT_CONFIG_NOSYSTEM: "1",
-        LANG: "C",
-      };
-
       const stripToken = (s: string) =>
         s.replace(/https:\/\/[^@\s]+@github\.com/g, "https://github.com");
 
-      log(`> Running: git clone --depth 1 --progress <url> ${repoDir}`);
+      log(`> Running: git clone -4 --depth 1 --progress <url> ${repoDir}`);
 
       const child = spawn(
         "git",
-        ["clone", "--depth", "1", "--progress", "--no-tags", cloneUrl, repoDir],
-        // no cwd needed — repoDir is absolute
+        ["clone", "-4", "--depth", "1", "--progress", "--no-tags", cloneUrl, repoDir],
+        // no cwd needed — repoDir is absolute, -4 forces IPv4
         { env: gitEnv, stdio: ["ignore", "pipe", "pipe"] }
       );
 
