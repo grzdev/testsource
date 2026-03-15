@@ -1,9 +1,13 @@
 import express from "express";
 import cors from "cors";
 import crypto from "crypto";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { createJob, getJob, getAllJobs } from "./store/jobs";
 import { enqueue, setRunner, getQueueDepth, getRunningCount } from "./queue/manager";
 import { runJob } from "./executor/runner";
+
+const execFileAsync = promisify(execFile);
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
@@ -94,6 +98,38 @@ app.get("/jobs", (_req, res) => {
 });
 
 // ── Start ──────────────────────────────────────────────────────────────────
+
+/** Network debug — tests outbound HTTPS from the Railway container to GitHub hosts.
+ *  GET /debug/network
+ *  Returns per-host: reachable (bool), statusCode, latencyMs, error
+ */
+app.get("/debug/network", async (_req, res) => {
+  const targets = [
+    "https://api.github.com",
+    "https://github.com",
+    "https://codeload.github.com",
+    "https://objects.githubusercontent.com",
+  ];
+
+  const probe = async (url: string) => {
+    const start = Date.now();
+    try {
+      const { stdout, stderr } = await execFileAsync(
+        "curl",
+        ["-4", "-I", "--max-time", "15", "--silent", "--write-out", "%{http_code}", url],
+        { timeout: 20_000 }
+      );
+      const combined = stdout + stderr;
+      const code = combined.trim().slice(-3);
+      return { url, reachable: true, statusCode: parseInt(code, 10) || null, latencyMs: Date.now() - start, error: null };
+    } catch (e: unknown) {
+      return { url, reachable: false, statusCode: null, latencyMs: Date.now() - start, error: (e as Error).message.slice(0, 200) };
+    }
+  };
+
+  const results = await Promise.all(targets.map(probe));
+  res.json({ results });
+});
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`[runner-api] Listening on port ${PORT}`);
