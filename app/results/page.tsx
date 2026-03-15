@@ -2,11 +2,12 @@
 
 import { Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
 import RepoInput, { type AnalysisMode, detectMode } from '@/components/RepoInput';
 import ReportCard from '@/components/ReportCard';
 import PRReportCard from '@/components/PRReportCard';
 import IssueReportCard from '@/components/IssueReportCard';
+import TestSpriteRunner from '@/components/TestSpriteRunner';
 import Skeleton from '@/components/Skeleton';
 import type { AnalysisResult, PRAnalysis, IssueAnalysis } from '@/lib/types';
 
@@ -115,6 +116,31 @@ function ResultsContent() {
           {mode === 'repo' && result && <ReportCard result={result} />}
           {mode === 'pr' && prResult && <PRReportCard result={prResult} />}
           {mode === 'issue' && issueResult && <IssueReportCard result={issueResult} />}
+
+          {/* TestSprite Execution Dashboard */}
+          {mode === 'repo' && result && (
+            result.signals.testspriteCompatibility.compatible
+              ? <TestSpriteRunner githubUrl={searchParams.get('url')!} />
+              : (
+                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+                  <div className="flex gap-3 items-start">
+                    <Info className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-300 mb-1">
+                        Automatic TestSprite execution is unavailable for this repository.
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        This repository appears to be a library, CLI tool, or non-runnable monorepo.
+                        GitHub intelligence is still available, but automated UI testing is skipped.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+          )}
+          {mode === 'pr' && prResult && (
+            <TestSpriteRunner githubUrl={searchParams.get('url')!} />
+          )}
         </div>
       </div>
     </main>

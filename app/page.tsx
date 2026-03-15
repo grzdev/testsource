@@ -183,7 +183,7 @@ export default function Home() {
 
               {/* Bottom hint */}
               <p className="text-center text-xs text-slate-600 mt-8">
-                Results in seconds · Free to try
+                 Free to try
               </p>
         </div>
       </div>

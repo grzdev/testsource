@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The runner-api is a standalone Node service — exclude it from Next.js rules
+    "runner-api/**",
   ]),
 ]);
 

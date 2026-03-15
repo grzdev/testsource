@@ -26,9 +26,10 @@ function activityStatus(mergedPRs: number): SignalStatus {
 
 interface Props {
   health: RepoHealth;
+  repoUrl?: string;
 }
 
-export default function RepoHealthSection({ health }: Props) {
+export default function RepoHealthSection({ health, repoUrl }: Props) {
   const {
     openIssues,
     openPullRequests,
@@ -50,11 +51,13 @@ export default function RepoHealthSection({ health }: Props) {
           label="Open issues"
           value={openIssues.toLocaleString()}
           status={openIssues < 100 ? 'pass' : openIssues < 500 ? 'warn' : 'fail'}
+          href={repoUrl ? `${repoUrl}/issues` : undefined}
         />
         <CheckRow
           label="Open pull requests"
           value={openPullRequests.toLocaleString()}
           status={openPullRequests <= 50 ? 'pass' : 'warn'}
+          href={repoUrl ? `${repoUrl}/pulls` : undefined}
         />
         <CheckRow
           label="PRs merged (last 30 days)"
@@ -70,6 +73,7 @@ export default function RepoHealthSection({ health }: Props) {
           label="Contributors"
           value={contributorsCount > 0 ? contributorsCount.toLocaleString() : 'Unknown'}
           status={contributorsCount >= 5 ? 'pass' : contributorsCount >= 1 ? 'warn' : 'neutral'}
+          href={repoUrl && contributorsCount > 0 ? `${repoUrl}/graphs/contributors` : undefined}
         />
         <CheckRow
           label="Latest release"
@@ -79,6 +83,7 @@ export default function RepoHealthSection({ health }: Props) {
               : 'No releases published'
           }
           status={latestRelease ? 'pass' : 'neutral'}
+          href={repoUrl && latestRelease ? `${repoUrl}/releases/tag/${latestRelease.tag}` : undefined}
         />
         <CheckRow
           label="Default branch"

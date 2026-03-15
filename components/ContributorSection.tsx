@@ -3,9 +3,10 @@ import CheckRow from './CheckRow';
 
 interface Props {
   data: ContributorReadiness;
+  repoUrl?: string;
 }
 
-export default function ContributorSection({ data }: Props) {
+export default function ContributorSection({ data, repoUrl }: Props) {
   const {
     hasContributing,
     hasCodeOfConduct,
@@ -47,11 +48,13 @@ export default function ContributorSection({ data }: Props) {
           label="Good first issues"
           value={goodFirstIssues > 0 ? `${goodFirstIssues} open` : 'None'}
           status={goodFirstIssues >= 3 ? 'pass' : goodFirstIssues >= 1 ? 'warn' : 'neutral'}
+          href={repoUrl && goodFirstIssues > 0 ? `${repoUrl}/issues?q=is%3Aopen+label%3A%22good+first+issue%22` : undefined}
         />
         <CheckRow
           label="Help wanted issues"
           value={helpWantedIssues > 0 ? `${helpWantedIssues} open` : 'None'}
           status={helpWantedIssues >= 3 ? 'pass' : helpWantedIssues >= 1 ? 'warn' : 'neutral'}
+          href={repoUrl && helpWantedIssues > 0 ? `${repoUrl}/issues?q=is%3Aopen+label%3A%22help+wanted%22` : undefined}
         />
       </div>
     </div>

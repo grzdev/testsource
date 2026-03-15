@@ -1,15 +1,11 @@
 import Image from 'next/image';
-import { Star, GitFork, Code2 } from 'lucide-react';
+import { Star, GitFork, Code2, ExternalLink } from 'lucide-react';
 import type { AnalysisResult } from '@/lib/types';
-import { inferPreflightHints } from '@/lib/scoring';
 import CheckRow from './CheckRow';
 import type { SignalStatus } from './CheckRow';
 import VerdictBadge from './VerdictBadge';
 import RepoHealthSection from './RepoHealthSection';
 import ContributorSection from './ContributorSection';
-import TestSpriteSection from './TestSpriteSection';
-import WorkflowSection from './WorkflowSection';
-import PreflightChecklist from './PreflightChecklist';
 import RecentIssuesSection from './RecentIssuesSection';
 import FadeIn from './FadeIn';
 
@@ -28,7 +24,7 @@ function formatDays(days: number): string {
 export default function ReportCard({ result }: { result: AnalysisResult }) {
   const { meta, signals, health, contributorReadiness, score, maxScore, verdict, recommendation, workflow, recentIssues } = result;
 
-  const preflightHints = inferPreflightHints(signals.buildFile, signals.projectType);
+  const repoUrl = `https://github.com/${meta.fullName}`;
 
   const activityStatus: SignalStatus = signals.recentActivity ? 'pass' : 'warn';
   const activityValue = `Last pushed ${formatDays(signals.daysSinceLastPush)}`;
@@ -57,7 +53,15 @@ export default function ReportCard({ result }: { result: AnalysisResult }) {
                   unoptimized
                 />
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-white font-bold text-base font-mono truncate">{meta.fullName}</h2>
+                  <a
+                    href={repoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-white hover:text-emerald-400 font-bold text-base font-mono truncate transition-colors"
+                  >
+                    <span className="truncate">{meta.fullName}</span>
+                    <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
+                  </a>
                   {meta.description && (
                     <p className="text-slate-400 text-sm mt-0.5 line-clamp-1">{meta.description}</p>
                   )}
@@ -80,7 +84,7 @@ export default function ReportCard({ result }: { result: AnalysisResult }) {
                 </div>
               </div>
               <div className="border-t border-slate-800 pt-1">
-                <CheckRow label="README" value={signals.readme ? 'Found' : 'Missing'} status={signals.readme ? 'pass' : 'fail'} />
+                <CheckRow label="README" value={signals.readme ? 'Found' : 'Missing'} status={signals.readme ? 'pass' : 'fail'} href={signals.readme ? `${repoUrl}#readme` : undefined} />
                 <CheckRow label="License" value={signals.license ?? 'Missing'} status={signals.license ? 'pass' : 'warn'} />
                 <CheckRow label="Build file" value={signals.buildFile ?? 'Not detected'} status={signals.buildFile ? 'pass' : 'warn'} />
                 <CheckRow label="Tests" value={signals.testsFound ? signals.testDir ?? 'Detected via framework config' : 'Not detected'} status={signals.testsFound ? 'pass' : 'fail'} />
@@ -92,7 +96,7 @@ export default function ReportCard({ result }: { result: AnalysisResult }) {
 
         {/* Contributor Readiness */}
         <FadeIn delay={120}>
-          <ContributorSection data={contributorReadiness} />
+          <ContributorSection data={contributorReadiness} repoUrl={repoUrl} />
         </FadeIn>
 
         {/* Final Verdict */}
@@ -115,19 +119,13 @@ export default function ReportCard({ result }: { result: AnalysisResult }) {
           </div>
         </FadeIn>
 
-        {/* Recommended TestSprite Workflow */}
-        {workflow && (
-          <FadeIn delay={360}>
-            <WorkflowSection workflow={workflow} />
-          </FadeIn>
-        )}
       </div>
 
       {/* ── Right column ───────────────────────────────── */}
       <div className="flex flex-col gap-4">
         {/* Repo Health */}
         <FadeIn delay={60}>
-          <RepoHealthSection health={health} />
+          <RepoHealthSection health={health} repoUrl={repoUrl} />
         </FadeIn>
 
         {/* Recent Open Issues */}
@@ -135,15 +133,6 @@ export default function ReportCard({ result }: { result: AnalysisResult }) {
           <RecentIssuesSection issues={recentIssues} />
         </FadeIn>
 
-        {/* TestSprite Readiness */}
-        <FadeIn delay={300}>
-          <TestSpriteSection signals={signals} />
-        </FadeIn>
-
-        {/* Pre-flight Checklist */}
-        <FadeIn delay={420}>
-          <PreflightChecklist hints={preflightHints} />
-        </FadeIn>
       </div>
 
     </div>

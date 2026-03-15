@@ -1,8 +1,6 @@
 import Image from 'next/image';
 import { GitPullRequest, Plus, Minus, FileCode2, Layout } from 'lucide-react';
 import type { PRAnalysis, PRFocusType } from '@/lib/types';
-import WorkflowSection from './WorkflowSection';
-import PreflightChecklist from './PreflightChecklist';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -143,11 +141,7 @@ export default function PRReportCard({ result }: { result: PRAnalysis }) {
         </div>
       )}
 
-      {/* ── Row 3: Workflow + Preflight (2-col grid) ─────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <WorkflowSection workflow={workflow} />
-        <PreflightChecklist hints={preflightHints} />
-      </div>
+
     </div>
   );
 }

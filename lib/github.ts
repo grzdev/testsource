@@ -339,7 +339,7 @@ export async function fetchRecentIssues(
   repo: string,
 ): Promise<Array<{ number: number; title: string; state: string; labels: GithubIssueLabel[]; created_at: string; html_url: string }>> {
   const res = await fetch(
-    `${GITHUB_API}/repos/${owner}/${repo}/issues?state=open&per_page=10&sort=created&direction=desc`,
+    `${GITHUB_API}/repos/${owner}/${repo}/issues?state=open&per_page=50&sort=created&direction=desc`,
     { headers: getHeaders(), cache: 'no-store' },
   );
   if (!res.ok) return [];
@@ -348,7 +348,7 @@ export async function fetchRecentIssues(
   // GitHub issues endpoint returns PRs too — filter them out
   return (data as GithubIssueDetail[])
     .filter(i => !i.pull_request)
-    .slice(0, 5)
+    .slice(0, 10)
     .map(i => ({
       number: i.number,
       title: i.title,
