@@ -177,11 +177,33 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
       <div className="mt-8 border-t border-slate-800/80 pt-8">
         <div className={`flex items-start gap-3 rounded-xl border px-5 py-4 ${color}`}>
           <Icon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <p className="text-sm leading-relaxed">
-            That looks like a {kind} URL. To run tests we need a GitHub repo URL (e.g.{' '}
-            <span className="font-mono">https://github.com/owner/repo</span>). The repo must contain
-            an identifiable supported framework (Next.js, Vite, or Create React App).
-          </p>
+          <div className="text-sm leading-relaxed space-y-1.5">
+            <p>
+              That looks like a {kind} URL — tests can only run against a repository, not a {kind}.
+            </p>
+            <p>
+              Please submit the <span className="font-semibold">repo URL</span> directly (e.g.{' '}
+              <span className="font-mono">https://github.com/owner/repo</span>) — the repo must contain
+              a <span className="font-semibold">package.json</span> and use Next.js, Vite, or Create React App.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No package.json error — show a violet/PR-themed notice, no pipeline UI
+  const isNoPackageJson = isFailed && !!jobState.error?.includes('No package.json found');
+  if (isNoPackageJson) {
+    return (
+      <div className="mt-8 border-t border-slate-800/80 pt-8">
+        <div className="flex items-start gap-3 rounded-xl border px-5 py-4 text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+          <GitBranchIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <div className="text-sm leading-relaxed space-y-1.5">
+            <p className="font-semibold">No <span className="font-mono">package.json</span> found — this doesn&apos;t appear to be a Node.js project.</p>
+            <p>TestSprite requires a Node.js project with a <span className="font-mono">package.json</span> and a supported framework (Next.js, Vite, or Create React App) to run automated tests.</p>
+            <p>Try a different repository that uses one of those frameworks instead.</p>
+          </div>
         </div>
       </div>
     );

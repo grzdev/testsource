@@ -373,24 +373,66 @@ export async function runJob(jobId: string): Promise<void> {
         NODE_ENV: "development",
         CI: "true",
       };
-      try {
-        const installResult = await execAsync(
-          `${pm} install --prefer-offline 2>&1`,
-          { cwd: workDir, timeout: INSTALL_TIMEOUT_MS, env: installEnv }
-        );
-        if (installResult.stdout) log(`  ${installResult.stdout.slice(0, 300)}`);
-      } catch (err: any) {
-        log(`> Install warning (--prefer-offline): ${String(err.message).slice(0, 300)}`);
-        log(`> Retrying install without --prefer-offline...`);
+
+      // Helper: run one install attempt and log its full output; returns true on success.
+      const tryInstall = async (extraArgs: string): Promise<boolean> => {
+        const cmd = `${pm} install${extraArgs ? ` ${extraArgs}` : ""}`;
+        log(`> Running: ${cmd}`);
         try {
-          const retryResult = await execAsync(
-            `${pm} install 2>&1`,
-            { cwd: workDir, timeout: INSTALL_TIMEOUT_MS, env: installEnv }
+          const r = await execAsync(`${cmd} 2>&1`, {
+            cwd: workDir,
+            timeout: INSTALL_TIMEOUT_MS,
+            env: installEnv,
+            maxBuffer: 1024 * 1024 * 10,
+          });
+          const out = (r.stdout ?? "").trim();
+          if (out) log(`> Install output:\n${out.slice(0, 3000)}`);
+          log(`> Install succeeded (${extraArgs || "no extra flags"}).`);
+          return true;
+        } catch (err: any) {
+          const stdout = (err.stdout ?? "").trim();
+          const stderr = (err.stderr ?? "").trim();
+          if (stdout) log(`> Install stdout:\n${stdout.slice(0, 3000)}`);
+          if (stderr) log(`> Install stderr:\n${stderr.slice(0, 3000)}`);
+          log(`> Install failed (${extraArgs || "no extra flags"}).`);
+          return false;
+        }
+      };
+
+      // Three-attempt strategy: --prefer-offline → plain → --legacy-peer-deps (npm only)
+      let installOk = await tryInstall("--prefer-offline");
+      if (!installOk) {
+        log(`> Retrying without --prefer-offline...`);
+        installOk = await tryInstall("");
+      }
+      if (!installOk && pm === "npm") {
+        log(`> Retrying with --legacy-peer-deps...`);
+        installOk = await tryInstall("--legacy-peer-deps");
+      }
+
+      if (!installOk) {
+        throw new Error(
+          `Dependency installation failed after all retries (package manager: ${pm}). ` +
+          `See the install stderr above for the root cause. ` +
+          `Common fixes: peer-dependency conflicts, missing registry access, or an unsupported Node version.`
+        );
+      }
+
+      // Verify the framework's main binary exists in node_modules before continuing.
+      const frameworkBin: Record<string, string> = {
+        nextjs: path.join(workDir, "node_modules", "next", "package.json"),
+        vite:   path.join(workDir, "node_modules", "vite", "package.json"),
+        cra:    path.join(workDir, "node_modules", "react-scripts", "package.json"),
+      };
+      const binCheck = frameworkBin[framework];
+      if (binCheck) {
+        try {
+          await fs.access(binCheck);
+        } catch {
+          throw new Error(
+            `Dependencies installed but the framework package is missing from node_modules. ` +
+            `Expected: ${binCheck}. Installation may have succeeded partially.`
           );
-          if (retryResult.stdout) log(`  ${retryResult.stdout.slice(0, 300)}`);
-          log(`> Install retry succeeded.`);
-        } catch (retryErr: any) {
-          log(`> Install retry warning: ${String(retryErr.message).slice(0, 300)}`);
         }
       }
 
