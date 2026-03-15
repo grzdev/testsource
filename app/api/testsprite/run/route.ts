@@ -17,16 +17,31 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const res = await fetch(`${runnerUrl}/jobs`, {
+    const res = await fetch(`${runnerUrl.replace(/\/$/, "")}/jobs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
+
+    const contentType = res.headers.get("content-type") ?? "";
+    const raw = await res.text();
+
+    let data: unknown = { message: raw };
+    if (contentType.includes("application/json")) {
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = { error: "Runner returned invalid JSON.", raw: raw.slice(0, 500) };
+      }
+    }
+
     return NextResponse.json(data, { status: res.status });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
-      { error: "Failed to reach the runner service. Please try again." },
+      {
+        error: "Failed to reach the runner service.",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 502 }
     );
   }

@@ -242,11 +242,16 @@ export async function runJob(jobId: string): Promise<void> {
 
     // ── Clone ────────────────────────────────────────────────────────────
     setStage("Clone repository");
+    // Clone into a named path — never into cwd '.', which can confuse git
     repoDir = path.join(jobWorkspaceRoot, "repo");
-    await fs.mkdir(repoDir, { recursive: true });
-    log(`> Cloning https://github.com/${owner}/${repo} (shallow)...`);
+    // Ensure parent exists but NOT the repo dir itself — git creates it
+    await fs.mkdir(jobWorkspaceRoot, { recursive: true });
+    await fs.rm(repoDir, { recursive: true, force: true }); // clean slate
 
-    // Use spawn so we stream ALL git output live and never miss a fatal line
+    log(`> Clone target : ${repoDir}`);
+    log(`> Clone source : https://github.com/${owner}/${repo}`);
+
+    // Use spawn so we stream ALL git output live
     await new Promise<void>((resolve, reject) => {
       const gitEnv: NodeJS.ProcessEnv = {
         ...process.env,
@@ -259,10 +264,13 @@ export async function runJob(jobId: string): Promise<void> {
       const stripToken = (s: string) =>
         s.replace(/https:\/\/[^@\s]+@github\.com/g, "https://github.com");
 
+      log(`> Running: git clone --depth 1 --progress <url> ${repoDir}`);
+
       const child = spawn(
         "git",
-        ["clone", "--depth", "1", "--progress", cloneUrl, "."],
-        { cwd: repoDir, env: gitEnv, stdio: ["ignore", "pipe", "pipe"] }
+        ["clone", "--depth", "1", "--progress", "--no-tags", cloneUrl, repoDir],
+        // no cwd needed — repoDir is absolute
+        { env: gitEnv, stdio: ["ignore", "pipe", "pipe"] }
       );
 
       let allOutput = "";
@@ -281,8 +289,8 @@ export async function runJob(jobId: string): Promise<void> {
 
       const timeoutHandle = setTimeout(() => {
         child.kill("SIGKILL");
-        reject(new Error(`git clone timed out after 120 s for github.com/${owner}/${repo}`));
-      }, 120_000);
+        reject(new Error(`git clone timed out after 300 s for github.com/${owner}/${repo}`));
+      }, 300_000);
 
       child.on("error", (spawnErr) => {
         clearTimeout(timeoutHandle);
@@ -291,30 +299,28 @@ export async function runJob(jobId: string): Promise<void> {
 
       child.on("close", (code) => {
         clearTimeout(timeoutHandle);
-        if (code === 0) {
-          resolve();
-          return;
-        }
+        if (code === 0) { resolve(); return; }
         const msg = allOutput.trim() || `git exited with code ${code}`;
         const lower = msg.toLowerCase();
         if (lower.includes("not found") || lower.includes("does not exist")) {
           reject(new Error(`Repository not found: github.com/${owner}/${repo}. Make sure it exists and is public (or your token has access).`));
         } else if (lower.includes("authentication failed") || lower.includes("could not read username") || lower.includes("terminal prompts disabled")) {
-          reject(new Error(`Git authentication failed for github.com/${owner}/${repo}. Check that GITHUB_TOKEN on Railway is valid and has repo read access.`));
+          reject(new Error(`Git authentication failed for github.com/${owner}/${repo}. Check that GITHUB_TOKEN on Railway is valid.`));
         } else {
           reject(new Error(`Clone failed (exit ${code}) for github.com/${owner}/${repo}: ${msg.slice(0, 800)}`));
         }
       });
     });
 
+    log(`> Clone complete.`);
     if (type === "pull" && numStr) {
       log(`> Checking out PR #${numStr}...`);
       try {
         await execAsync(`git fetch origin pull/${numStr}/head:pr-${numStr}`, { cwd: repoDir });
         await execAsync(`git checkout pr-${numStr}`, { cwd: repoDir });
         log(`> PR #${numStr} checked out.`);
-      } catch (err: any) {
-        log(`> Warning: could not checkout PR head: ${err.message}. Using default branch.`);
+      } catch (err: unknown) {
+        log(`> Warning: could not checkout PR head: ${(err as Error).message}. Using default branch.`);
       }
     }
 
