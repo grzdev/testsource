@@ -246,16 +246,50 @@ export async function runJob(jobId: string): Promise<void> {
     await fs.mkdir(repoDir, { recursive: true });
     log(`> Cloning ${`https://github.com/${owner}/${repo}`} (shallow)...`);
 
+    // Prevent git from hanging waiting for interactive credentials
+    const gitEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: "0",
+      GIT_ASKPASS: "echo",
+      LANG: "C",
+    };
+
     try {
-      await execAsync(`git clone --depth 1 ${cloneUrl} .`, {
+      await execAsync(`git clone --depth 1 "${cloneUrl}" .`, {
         cwd: repoDir,
-        timeout: 60_000,
+        timeout: 120_000,
+        env: gitEnv,
       });
-    } catch (err: any) {
-      if (String(err.message).includes("not found") || String(err.stderr).includes("not found")) {
-        throw new Error(`Repository not found: github.com/${owner}/${repo}. Make sure it is public.`);
+    } catch (err: unknown) {
+      // Combine stderr + stdout for the full git output, strip embedded token
+      const rawStderr = String((err as any).stderr ?? "");
+      const rawStdout = String((err as any).stdout ?? "");
+      const rawMsg    = String((err as any).message ?? "");
+      const combined  = (rawStderr || rawStdout || rawMsg);
+      const clean = combined.replace(/https:\/\/[^@\s]+@github\.com/g, "https://github.com").trim();
+      const msg = clean || "git clone produced no output (timeout or network error)";
+
+      if (
+        msg.toLowerCase().includes("not found") ||
+        msg.toLowerCase().includes("repository not found") ||
+        msg.toLowerCase().includes("does not exist")
+      ) {
+        throw new Error(
+          `Repository not found: github.com/${owner}/${repo}. ` +
+            "Make sure the repo exists and is accessible."
+        );
       }
-      throw err;
+      if (
+        msg.toLowerCase().includes("authentication failed") ||
+        msg.toLowerCase().includes("could not read username") ||
+        msg.toLowerCase().includes("invalid credentials")
+      ) {
+        throw new Error(
+          `Git authentication failed cloning github.com/${owner}/${repo}. ` +
+            "Check that GITHUB_TOKEN on Railway is valid and has repo read access."
+        );
+      }
+      throw new Error(`Clone failed for github.com/${owner}/${repo}: ${msg.slice(0, 600)}`);
     }
 
     if (type === "pull" && numStr) {
