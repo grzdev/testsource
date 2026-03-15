@@ -380,7 +380,18 @@ export async function runJob(jobId: string): Promise<void> {
         );
         if (installResult.stdout) log(`  ${installResult.stdout.slice(0, 300)}`);
       } catch (err: any) {
-        log(`> Install warning: ${String(err.message).slice(0, 300)}`);
+        log(`> Install warning (--prefer-offline): ${String(err.message).slice(0, 300)}`);
+        log(`> Retrying install without --prefer-offline...`);
+        try {
+          const retryResult = await execAsync(
+            `${pm} install 2>&1`,
+            { cwd: workDir, timeout: INSTALL_TIMEOUT_MS, env: installEnv }
+          );
+          if (retryResult.stdout) log(`  ${retryResult.stdout.slice(0, 300)}`);
+          log(`> Install retry succeeded.`);
+        } catch (retryErr: any) {
+          log(`> Install retry warning: ${String(retryErr.message).slice(0, 300)}`);
+        }
       }
 
       // Ensure TypeScript is present for Next.js repos that use next.config.ts
