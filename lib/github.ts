@@ -348,7 +348,7 @@ export async function fetchRecentIssues(
   // GitHub issues endpoint returns PRs too — filter them out
   return (data as GithubIssueDetail[])
     .filter(i => !i.pull_request)
-    .slice(0, 10)
+    .slice(0, 8)
     .map(i => ({
       number: i.number,
       title: i.title,

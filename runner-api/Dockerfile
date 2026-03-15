@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
+    lsof \
+    procps \
     # Chromium / Playwright deps
     libgbm-dev \
     libnss3 \
@@ -29,6 +31,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxi6 \
     libxtst6 \
   && rm -rf /var/lib/apt/lists/*
+
+# Fake `open` command: TestSprite MCP tries to open a browser dashboard via the
+# macOS `open` binary. In a headless Linux container that command does not exist,
+# causing the entire test run to abort with "open: not found". This no-op shim
+# prevents the crash while still letting tests generate and collect results.
+RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/open     && chmod +x /usr/local/bin/open \
+ && printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open && chmod +x /usr/local/bin/xdg-open
 
 # pnpm is not pre-installed; yarn ships with the node image already
 RUN npm install -g pnpm

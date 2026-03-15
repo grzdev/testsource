@@ -77,7 +77,8 @@ export class TestSpriteApp {
       localEndpoint,
       projectName,
       apiKey,
-      projectDescription
+      projectDescription,
+      additionalInstruction ?? ""
     );
 
     const tmpDir = path.join(projectPath, "testsprite_tests", "tmp");
@@ -231,7 +232,12 @@ export class TestSpriteApp {
     this.log("Generating Test Plan...");
     const testPlanRes = await this.callTool(
       "testsprite_generate_frontend_test_plan",
-      { projectPath, needLogin }
+      {
+        projectPath,
+        needLogin,
+        // Seed coverage guidance upstream so the planner generates 8-12 cases
+        additionalInstruction: additionalInstruction ?? "",
+      }
     );
     this.checkAuth();
 
@@ -343,7 +349,8 @@ export class TestSpriteApp {
     localEndpoint: string,
     projectName: string,
     apiKey: string,
-    projectDescription: string
+    projectDescription: string,
+    additionalInstruction: string = ""
   ) {
     const testspriteDir = path.join(projectPath, "testsprite_tests", "tmp");
     await fs.mkdir(testspriteDir, { recursive: true });
@@ -378,13 +385,17 @@ export class TestSpriteApp {
       "",
       "## Core Features",
       "- Web-based user interface with interactive components",
-      "- Standard navigation and page routing",
-      "- User-facing flows and state management",
+      "- Navigation, routing, and page transitions",
+      "- User-facing flows: forms, CTAs, data submission, and feedback",
+      "- Loading, error, and empty states for async operations",
+      "- Responsive layout across common viewport sizes",
       "",
       "## Test Objectives",
-      "- Validate core user-facing functionality and interactions",
-      "- Ensure navigation and routing work correctly",
-      "- Verify UI components render and respond correctly",
+      "- Identify broken or incomplete user-facing functionality a contributor could fix",
+      "- Generate 8 to 12 meaningful tests covering the breadth of the application",
+      "- Cover: initial render, navigation, core CTA flows, form validation, empty/error states, modals, dropdowns, and responsiveness",
+      "- Avoid shallow presence checks — prefer realistic user journeys that exercise real state transitions",
+      "- For every failing test, capture what the user attempted, what was expected, what actually happened, and which area of the UI is involved",
     ].join("\n");
     await fs.writeFile(path.join(prdFilesDir, "prd.md"), syntheticPrd);
 
@@ -399,7 +410,9 @@ export class TestSpriteApp {
         projectName,
         projectPath,
         testIds: [],
-        additionalInstruction: "",
+        // Write the real instruction into the stored config so TestSprite's own
+        // test planner reads it when deciding how many test cases to generate.
+        additionalInstruction,
         serverMode: "development",
         envs: { API_KEY: apiKey },
       },

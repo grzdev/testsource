@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, CheckCircle2, XCircle, Circle, Terminal } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Circle, Terminal, GitPullRequest as GitPullRequestIcon, CircleDot, GitBranch as GitBranchIcon } from 'lucide-react';
 import type { JobState } from '@/lib/jobs';
 
 // Canonical pipeline stage order — must match setStage() calls in lib/jobs.ts + lib/testsprite-mcp.ts
@@ -20,6 +20,31 @@ const STAGE_LIST = [
 ] as const;
 
 type StageStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+interface TestResult {
+  // Raw TestSprite test_results.json fields
+  testId?: string | number;
+  title?: string;            // Real name: e.g. "TC007-PR mode: Analyze a valid PR URL..."
+  description?: string;      // "Verifies that..."
+  testStatus?: string;       // "PASSED" | "FAILED"
+  testError?: string;        // Multi-line failure text with ASSERTIONS bullets
+  testType?: string;         // "FRONTEND"
+  testVisualization?: string;// URL to Playwright recording video
+  priority?: string;         // "High" | "Medium" | "Low"
+  // Legacy / alternate field names kept for backwards-compat
+  id?: string | number;
+  name?: string;
+  testName?: string;
+  testCaseTitle?: string;
+  type?: string;
+  status?: string;
+  duration?: number;
+  durationMs?: number;
+  error?: string;
+  errorMessage?: string;
+  // Injected by backend normalizer (runner.ts)
+  isPassed?: boolean;
+}
 
 function getStageStatuses(job: JobState): { name: string; status: StageStatus }[] {
   const currentIdx = (STAGE_LIST as readonly string[]).findIndex(s => s === job.stage);
@@ -59,13 +84,32 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
   // scrolls within the panel and never jumps the browser viewport.
   const logPanelRef = useRef<HTMLDivElement>(null);
 
+  // Derive URL type from prop — no state needed for this check
+  const invalidUrlType: 'issue' | 'pr' | null = (() => {
+    try {
+      const seg = new URL(githubUrl.startsWith('http') ? githubUrl : `https://${githubUrl}`)
+        .pathname.split('/').filter(Boolean)[2];
+      if (seg === 'issues') return 'issue';
+      if (seg === 'pull') return 'pr';
+    } catch {}
+    return null;
+  })();
+
   useEffect(() => {
     const el = logPanelRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [jobState?.logs]);
 
-  // Start job on mount
+  // Reset state when URL changes to prevent stale errors showing for new submissions
   useEffect(() => {
+    setJobId(null);
+    setJobState(null);
+  }, [githubUrl]);
+
+  // Start job on mount — skip entirely for invalid URL types
+  useEffect(() => {
+    if (invalidUrlType) return;
+
     let active = true;
     (async () => {
       try {
@@ -88,7 +132,7 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
       }
     })();
     return () => { active = false; };
-  }, [githubUrl]);
+  }, [githubUrl, invalidUrlType]);
 
   // Polling loop
   useEffect(() => {
@@ -121,6 +165,48 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
   const isCompleted = jobState.status === 'completed';
   const isFailed    = jobState.status === 'failed';
 
+  // URL-type validation error — show a single inline notice, no pipeline UI
+  if (invalidUrlType) {
+    const isIssue = invalidUrlType === 'issue';
+    const kind    = isIssue ? 'issue' : 'pull request';
+    const color   = isIssue
+      ? 'text-sky-400 border-sky-500/30 bg-sky-500/10'
+      : 'text-violet-400 border-violet-500/30 bg-violet-500/10';
+    const Icon    = isIssue ? CircleDot : GitPullRequestIcon;
+    return (
+      <div className="mt-8 border-t border-slate-800/80 pt-8">
+        <div className={`flex items-start gap-3 rounded-xl border px-5 py-4 ${color}`}>
+          <Icon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <p className="text-sm leading-relaxed">
+            That looks like a {kind} URL. To run tests we need a GitHub repo URL (e.g.{' '}
+            <span className="font-mono">https://github.com/owner/repo</span>). The repo must contain
+            an identifiable supported framework (Next.js, Vite, or Create React App).
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Unsupported framework error — show a repo-themed notice, no pipeline UI
+  const isUnsupportedFramework = isFailed && !!jobState.error?.includes('Could not identify a supported framework');
+  if (isUnsupportedFramework) {
+    return (
+      <div className="mt-8 border-t border-slate-800/80 pt-8">
+        <div className="flex items-start gap-3 rounded-xl border px-5 py-4 text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+          <GitBranchIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <div className="text-sm leading-relaxed space-y-1.5">
+            <p>This repo doesn&apos;t appear to use a supported framework. For tests to run, the repo needs one of:</p>
+            <ul className="list-none space-y-1 mt-1">
+              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />Next.js</li>
+              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />Vite (including SvelteKit)</li>
+              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />Create React App</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const results  = jobState.results?.data;
   const passed   = results?.passed ?? 0;
   const failed   = results?.failed ?? 0;
@@ -143,7 +229,7 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
             <XCircle className="w-4 h-4 text-red-400" />
           )}
           <span className="text-sm font-semibold text-white">
-            {isRunning ? 'Running TestSprite…' : isCompleted ? 'Tests Completed' : 'Test Run Failed'}
+            {isRunning ? 'Running TestSprite test…' : isCompleted ? 'Tests Completed' : 'Test Run Failed'}
           </span>
           {isRunning && jobState.stage && (STAGE_LIST as readonly string[]).includes(jobState.stage) && (
             <span className="text-xs text-slate-500 font-mono ml-1">{jobState.stage}</span>
@@ -221,10 +307,58 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
       </div>
 
       {/* ── Results summary (only when completed with real tests) ─────────── */}
-      {isCompleted && total > 0 && (
+      {isCompleted && total > 0 && (() => {
+        const tests: TestResult[] = Array.isArray(results?.tests) ? (results.tests as TestResult[]) : [];
+        const failedTests = tests.filter(t => !(t.isPassed ?? /^(PASS|PASSED|SUCCESS)$/i.test(t.testStatus ?? t.status ?? '')));
+
+        // Backend verdict (preferred) — runner.ts computes this after normalizing results
+        const resultsExt        = results as Record<string, unknown>;
+        const backendVerdict    = resultsExt?.contributorVerdict as string | undefined;
+        const backendReason     = resultsExt?.contributorReason  as string | undefined;
+        const limitedCoverage   = resultsExt?.limitedCoverage    as boolean | undefined;
+
+        const VERDICT_MAP: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
+          strong_candidate:    { label: 'Strong Candidate',    color: 'text-orange-400', bg: 'bg-orange-950/20',  border: 'border-orange-900/30', dot: 'bg-orange-400'  },
+          possible_candidate:  { label: 'Possible Candidate',  color: 'text-yellow-400', bg: 'bg-yellow-950/20',  border: 'border-yellow-900/30', dot: 'bg-yellow-400'  },
+          weak_candidate:      { label: 'Weak Candidate',      color: 'text-emerald-400',bg: 'bg-emerald-950/20', border: 'border-emerald-900/30',dot: 'bg-emerald-400' },
+          not_enough_evidence: { label: 'Not Enough Evidence', color: 'text-slate-400',  bg: 'bg-slate-800/40',   border: 'border-slate-700',     dot: 'bg-slate-500'   },
+        };
+        const resolvedVerdict = (backendVerdict && VERDICT_MAP[backendVerdict])
+          ? backendVerdict
+          : (limitedCoverage || total < 5) ? 'not_enough_evidence'
+          : passRate === 100 ? 'weak_candidate'
+          : passRate >= 70   ? 'possible_candidate'
+          : 'strong_candidate';
+        const worthiness = VERDICT_MAP[resolvedVerdict] ?? VERDICT_MAP.not_enough_evidence;
+
+        // Suggested search terms derived from failed test names
+        const searchTerms: string[] = failedTests
+          .slice(0, 5)
+          .map((t): string | null => {
+            const n = (t.testName ?? t.title ?? t.name ?? '').toLowerCase();
+            if (/nav|menu|route|link/.test(n))     return 'is:issue is:open navigation';
+            if (/form|input|submit|valid/.test(n)) return 'is:issue is:open form';
+            if (/button|cta|click/.test(n))        return 'is:issue is:open button';
+            if (/load|empty|error|state/.test(n))  return 'is:issue is:open state';
+            if (/modal|dialog|dropdown/.test(n))   return 'is:issue is:open modal';
+            if (/mobile|responsive/.test(n))       return 'is:issue is:open responsive';
+            if (/access|aria|keyboard/.test(n))    return 'is:issue is:open accessibility';
+            return null;
+          })
+          .filter((s): s is string => s !== null)
+          .filter((s, i, a) => a.indexOf(s) === i);
+
+        return (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Test Results</h3>
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Test Results</h3>
+              <span className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${worthiness.bg} ${worthiness.border} ${worthiness.color}`}>
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${worthiness.dot}`} />
+                {worthiness.label}
+              </span>
+            </div>
             {(jobState.proxyUrl ?? jobState.results?.dashboardUrl) && (
               <a
                 href={jobState.proxyUrl ?? jobState.results.dashboardUrl}
@@ -236,14 +370,24 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
               </a>
             )}
           </div>
+
+          {/* Contributor assessment line */}
+          {(backendReason || limitedCoverage) && (
+            <div className={`px-5 py-3 border-b border-slate-800 text-xs ${worthiness.bg} ${worthiness.color}`}>
+              <span className="font-bold">Contribution assessment · </span>
+              {backendReason ?? 'Not enough tests were generated to assess contribution potential.'}
+            </div>
+          )}
+
+          {/* Stats bar */}
           <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-slate-800">
             <div className={`rounded-lg p-4 border text-center ${
               passRate === 100 ? 'bg-emerald-950/20 border-emerald-900/30' :
-              passRate >= 80   ? 'bg-yellow-950/20 border-yellow-900/30' :
+              passRate >= 70   ? 'bg-yellow-950/20 border-yellow-900/30' :
                                  'bg-red-950/20 border-red-900/30'
             }`}>
               <div className={`text-2xl font-bold mb-1 ${
-                passRate === 100 ? 'text-emerald-400' : passRate >= 80 ? 'text-yellow-400' : 'text-red-400'
+                passRate === 100 ? 'text-emerald-400' : passRate >= 70 ? 'text-yellow-400' : 'text-red-400'
               }`}>{passRate}%</div>
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Pass Rate</div>
             </div>
@@ -260,66 +404,121 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
               <div className="text-[10px] text-red-500/70 uppercase tracking-wider font-semibold">Failed</div>
             </div>
           </div>
-          {Array.isArray(results?.tests) && results.tests.length > 0 && (
-            <div className="border-b border-slate-800 overflow-x-auto">
-              <table className="w-full text-xs min-w-[560px]">
-                <thead>
-                  <tr className="bg-slate-950/60">
-                    <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-16">ID</th>
-                    <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Name</th>
-                    <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-24">Type</th>
-                    <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-16">Status</th>
-                    <th className="px-3 py-2.5 text-right text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-24">Duration</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/50">
-                  {results.tests.map((t: any, i: number) => {
-                    const id       = t.id ?? t.testId ?? `#${i + 1}`;
-                    const name     = t.testCaseTitle ?? t.testName ?? t.name ?? `Generated Frontend Test ${i + 1}`;
-                    const type     = t.type ?? t.testType ?? '—';
-                    const rawStatus = (t.testStatus ?? t.status ?? '').toUpperCase();
-                    const isPassed = /^(PASS|PASSED|SUCCESS)$/.test(rawStatus);
-                    const dur      = t.duration ?? t.durationMs ?? null;
-                    const error    = t.error ?? t.errorMessage ?? null;
-                    return (
-                      <tr key={i} className="hover:bg-slate-800/30 transition-colors align-top">
-                        <td className="px-3 py-2.5 text-slate-600 font-mono text-[10px]">{id}</td>
-                        <td className="px-3 py-2.5 text-slate-300">
-                          <div>{name}</div>
-                          {error && (
-                            <div className="mt-0.5 text-[10px] text-red-400/70 font-mono leading-snug break-words max-w-sm">
-                              {error}
-                            </div>
+
+          {/* Test cards */}
+          {tests.length > 0 && (
+            <div className="divide-y divide-slate-800/50">
+              {tests.map((t, i) => {
+                // Prefer normalizer-injected canonical fields, then real field names, then legacy fallbacks
+                const name     = t.testName ?? t.title ?? t.testCaseTitle ?? t.name ?? `Frontend Test ${i + 1}`;
+                const desc     = t.description ?? null;
+                const isPassed = t.isPassed ?? /^(PASS|PASSED|SUCCESS)$/i.test(t.testStatus ?? t.status ?? '');
+                const dur      = t.duration ?? t.durationMs ?? null;
+                // errorMessage set by backend normalizer from testError; testError is the real field
+                const rawErr   = t.errorMessage ?? t.testError ?? t.error ?? null;
+                const videoUrl = t.testVisualization ?? null;
+                const tType    = t.testType ?? t.type ?? null;
+
+                // Parse "TEST FAILURE\n\nASSERTIONS:\n- ..." into bullet list
+                const assertionBullets: string[] = rawErr ? (() => {
+                  const m = rawErr.match(/ASSERTIONS:\s*\n([\s\S]+)/);
+                  if (m) {
+                    return m[1].split('\n')
+                      .filter((l: string) => l.trim().startsWith('-'))
+                      .map((l: string) => l.replace(/^[\s-]+/, '').trim())
+                      .filter(Boolean);
+                  }
+                  return [rawErr.replace(/^TEST FAILURE\s*/i, '').trim()].filter(Boolean);
+                })() : [];
+
+                return (
+                  <div key={i} className={`px-5 py-4 ${isPassed ? '' : 'bg-red-950/5'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        {isPassed
+                          ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                          : <XCircle      className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />}
+                        <div className="min-w-0">
+                          <span className={`text-sm font-semibold leading-snug block ${isPassed ? 'text-slate-200' : 'text-red-200'}`}>
+                            {name}
+                          </span>
+                          {desc && (
+                            <span className="text-[11px] text-slate-500 leading-snug mt-0.5 block">{desc}</span>
                           )}
-                        </td>
-                        <td className="px-3 py-2.5 text-slate-500">{type}</td>
-                        <td className="px-3 py-2.5 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            isPassed
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                              : 'bg-red-500/10 text-red-400 border-red-500/20'
-                          }`}>{isPassed ? 'PASS' : 'FAIL'}</span>
-                        </td>
-                        <td className="px-3 py-2.5 text-right text-slate-500 font-mono">
-                          {dur != null ? `${dur}ms` : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {tType && (
+                          <span className="text-[10px] text-slate-600 hidden sm:inline">{tType}</span>
+                        )}
+                        {dur != null && (
+                          <span className="text-[10px] text-slate-600 font-mono">{dur}ms</span>
+                        )}
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                          isPassed
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : 'bg-red-500/10 text-red-400 border-red-500/20'
+                        }`}>{isPassed ? 'PASS' : 'FAIL'}</span>
+                      </div>
+                    </div>
+
+                    {/* Failure assertion bullets */}
+                    {!isPassed && assertionBullets.length > 0 && (
+                      <ul className="mt-3 ml-6 space-y-1.5">
+                        {assertionBullets.map((bullet, bi) => (
+                          <li key={bi} className="flex items-start gap-1.5 text-xs text-red-400/75">
+                            <span className="text-red-600 mt-0.5 flex-shrink-0">•</span>
+                            <span>{bullet}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {/* Video replay */}
+                    {videoUrl && (
+                      <div className="mt-2.5 ml-6">
+                        <a
+                          href={videoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-sky-400 hover:text-sky-300 transition-colors"
+                        >
+                          ▶ Watch test replay
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
+
+          {/* Suggested GitHub issue search terms */}
+          {searchTerms.length > 0 && (
+            <div className="px-5 py-4 border-t border-slate-800 bg-slate-950/40">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Suggested GitHub Issue Searches</p>
+              <div className="flex flex-wrap gap-2">
+                {searchTerms.map(term => (
+                  <span key={term} className="inline-block font-mono text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 select-all">
+                    {term}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Full report */}
           {jobState.results?.report && (
-            <div className="p-5">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Report</h4>
+            <div className="p-5 border-t border-slate-800">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Full Report</h4>
               <pre className="text-xs bg-slate-950 p-4 rounded-lg border border-slate-800 overflow-x-auto whitespace-pre-wrap font-sans text-slate-300 leading-relaxed">
                 {jobState.results.report}
               </pre>
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* ── Failure details ───────────────────────────────────────────────── */}
       {isFailed && (

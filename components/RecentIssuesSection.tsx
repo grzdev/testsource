@@ -20,8 +20,6 @@ function formatDate(iso: string): string {
 }
 
 export default function RecentIssuesSection({ issues }: { issues: RecentIssue[] }) {
-  if (issues.length === 0) return null;
-
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden card-hover">
       <div className="px-5 py-3.5 border-b border-slate-800">
@@ -31,6 +29,12 @@ export default function RecentIssuesSection({ issues }: { issues: RecentIssue[] 
         </h3>
       </div>
 
+      {issues.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500">
+          <CircleDot className="w-6 h-6 opacity-30" />
+          <span className="text-sm">No issues in this repo yet</span>
+        </div>
+      ) : (
       <ul className="divide-y divide-slate-800/60">
         {issues.map(issue => (
           <li key={issue.number} className="px-5 py-3 flex items-start gap-3 hover:bg-slate-800/30 transition-colors">
@@ -66,6 +70,7 @@ export default function RecentIssuesSection({ issues }: { issues: RecentIssue[] 
           </li>
         ))}
       </ul>
+      )}
     </div>
   );
 }

@@ -99,7 +99,8 @@ export default function ReportCard({ result }: { result: AnalysisResult }) {
           <ContributorSection data={contributorReadiness} repoUrl={repoUrl} />
         </FadeIn>
 
-        {/* Final Verdict */}
+        {/* Final Verdict — left column only when there are issues */}
+        {recentIssues.length > 0 && (
         <FadeIn delay={240}>
           <div className="bg-slate-900 border-[1.5px] border-slate-700 rounded-xl overflow-hidden card-hover">
             <div className="px-5 py-3 border-b border-slate-700 bg-slate-800/30">
@@ -118,6 +119,7 @@ export default function ReportCard({ result }: { result: AnalysisResult }) {
             </div>
           </div>
         </FadeIn>
+        )}
 
       </div>
 
@@ -132,6 +134,28 @@ export default function ReportCard({ result }: { result: AnalysisResult }) {
         <FadeIn delay={180}>
           <RecentIssuesSection issues={recentIssues} />
         </FadeIn>
+
+        {/* Final Verdict — right column only when there are no issues */}
+        {recentIssues.length === 0 && (
+        <FadeIn delay={240}>
+          <div className="bg-slate-900 border-[1.5px] border-slate-700 rounded-xl overflow-hidden card-hover">
+            <div className="px-5 py-3 border-b border-slate-700 bg-slate-800/30">
+              <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                Final Verdict
+              </h3>
+            </div>
+            <div className="p-5">
+              <VerdictBadge
+                verdict={verdict}
+                score={score}
+                maxScore={maxScore}
+                recommendation={recommendation}
+              />
+            </div>
+          </div>
+        </FadeIn>
+        )}
 
       </div>
 

@@ -21,6 +21,7 @@ function ResultsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mode, setMode] = useState<AnalysisMode>('repo');
+  const [activeUrl, setActiveUrl] = useState<string>(searchParams.get('url') ?? '');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [prResult, setPrResult] = useState<PRAnalysis | null>(null);
@@ -35,6 +36,7 @@ function ResultsContent() {
     abortRef.current = controller;
 
     setMode(detectedMode);
+    setActiveUrl(url);
     setLoading(true);
     setResult(null);
     setPrResult(null);
@@ -120,7 +122,7 @@ function ResultsContent() {
           {/* TestSprite Execution Dashboard */}
           {mode === 'repo' && result && (
             result.signals.testspriteCompatibility.compatible
-              ? <TestSpriteRunner githubUrl={searchParams.get('url')!} />
+              ? <TestSpriteRunner githubUrl={activeUrl} />
               : (
                 <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
                   <div className="flex gap-3 items-start">
@@ -139,7 +141,7 @@ function ResultsContent() {
               )
           )}
           {mode === 'pr' && prResult && (
-            <TestSpriteRunner githubUrl={searchParams.get('url')!} />
+            <TestSpriteRunner githubUrl={activeUrl} />
           )}
         </div>
       </div>

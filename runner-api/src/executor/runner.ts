@@ -416,6 +416,9 @@ export async function runJob(jobId: string): Promise<void> {
       const spawnEnv: NodeJS.ProcessEnv = {
         ...process.env,
         NODE_ENV: "development",
+        // Force PORT for all frameworks. Next.js/Vite accept -p/--port CLI args,
+        // but some repos also read process.env.PORT and will bind 8080 if not overridden.
+        PORT: String(assignedPort),
         FORCE_COLOR: "0",
         BROWSER: "none",
         CI: "true",
@@ -523,7 +526,31 @@ export async function runJob(jobId: string): Promise<void> {
       projectName: repo,
       targetUrl: targetUrl!,
       apiKey,
-      additionalInstruction: `Test the application at ${targetUrl}. Focus on core user-facing flows, navigation, and UI interactions.`,
+      additionalInstruction: `
+Test the application at ${targetUrl} as if the goal is to identify whether this repository is a good candidate for open-source contribution.
+
+Generate 8 to 12 meaningful frontend tests when the application has enough surface area. Only generate fewer if the application is genuinely very small (single page, one or two interactions).
+
+Cover these categories where applicable:
+1. Initial render and layout — does the page load with expected content?
+2. Navigation and routing — do links, menus, and route changes work?
+3. Main CTA or core user flow — does the primary action the app offers work end-to-end?
+4. Forms and validation — do forms accept valid input, reject invalid input, and show feedback?
+5. Empty / loading / error states — are these states handled gracefully?
+6. Responsiveness and usability — does the UI behave correctly at different sizes?
+7. Accessibility basics — are interactive elements keyboard-reachable and labeled?
+8. Regression-prone interactions — modals, dropdowns, toggles, accordions.
+
+Avoid shallow smoke tests. Prefer realistic user journeys and interaction-heavy tests that expose bugs.
+
+For every FAILED test, provide in the result:
+- a specific, descriptive test title (not "Generated Frontend Test N")
+- what the user attempted
+- expected behavior
+- actual behavior
+- why this matters to a real user
+- the likely area of the codebase involved (e.g. routing, form handler, state management, CSS)
+`,
       needLogin: false,
       projectDescription:
         projectDescription ||
@@ -559,6 +586,47 @@ export async function runJob(jobId: string): Promise<void> {
       ? results as any[]
       : Array.isArray((results as any)?.tests) ? (results as any).tests : [];
 
+    // ── Normalize raw test objects to a stable display schema ────────────
+    // Real test_results.json fields: title, description, testStatus, testError,
+    // testType, testVisualization, priority — map them to canonical names.
+    const PASS_RE = /^(PASS|PASSED|SUCCESS)$/i;
+    const normalizedTests = tests.map((t: any, idx: number) => ({
+      ...t,
+      // Canonical name — TestSprite writes "TC007-PR mode: ..." into `title`
+      testName:     t.title     ?? t.testCaseTitle ?? t.testName ?? t.name ?? `Frontend Test ${idx + 1}`,
+      // Canonical error — detailed assertion text lives in `testError`
+      errorMessage: t.testError ?? t.error         ?? t.errorMessage ?? null,
+      // Canonical pass flag
+      isPassed:     PASS_RE.test((t.testStatus ?? t.status ?? "").toUpperCase()),
+    }));
+
+    // Recompute counts from normalized tests (more reliable than the rough pass above)
+    const nPassed = normalizedTests.filter((t) => t.isPassed).length;
+    const nFailed = normalizedTests.length - nPassed;
+    if (nPassed + nFailed > 0) { tPassed = nPassed; tFailed = nFailed; }
+
+    // ── Low-coverage detection ───────────────────────────────────────────
+    const limitedCoverage = normalizedTests.length < 5;
+
+    // ── Contributor verdict (computed in backend so frontend is presentational) ──
+    const passRate = normalizedTests.length > 0 ? Math.round((nPassed / normalizedTests.length) * 100) : 0;
+    let contributorVerdict: string;
+    let contributorReason: string;
+    if (limitedCoverage) {
+      contributorVerdict = "not_enough_evidence";
+      contributorReason  = `Only ${normalizedTests.length} test${normalizedTests.length !== 1 ? "s" : ""} were generated. The app surface area may be too small or the dev server did not expose enough UI.`;
+    } else if (nFailed === 0) {
+      contributorVerdict = "weak_candidate";
+      contributorReason  = "All visible tests passed. Core flows appear to work; contribution opportunities may exist in less-explored areas.";
+    } else if (nFailed / normalizedTests.length <= 0.4) {
+      contributorVerdict = "possible_candidate";
+      contributorReason  = `${nFailed} out of ${normalizedTests.length} tests failed. There are visible issues a contributor could investigate.`;
+    } else {
+      contributorVerdict = "strong_candidate";
+      contributorReason  = `${nFailed} out of ${normalizedTests.length} tests failed. Clear, browser-confirmed bugs were found — this repo is actively worth contributing to.`;
+    }
+    log(`> Contributor verdict: ${contributorVerdict} (${passRate}% pass, coverage limited: ${limitedCoverage})`);
+
     const dashboardUrlMatch = typeof report === "string"
       ? report.match(/https?:\/\/[^\s)>"'\]]+testsprite[^\s)>"'\]]+/i)
       : null;
@@ -570,8 +638,12 @@ export async function runJob(jobId: string): Promise<void> {
         passed: tPassed,
         failed: tFailed,
         total: tPassed + tFailed,
-        tests,
+        tests: normalizedTests,
         raw: results,
+        limitedCoverage,
+        contributorVerdict,
+        contributorReason,
+        passRate,
       },
       report,
       dashboardUrl,
