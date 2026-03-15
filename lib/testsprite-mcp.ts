@@ -220,6 +220,7 @@ export class TestSpriteApp {
     // Run any terminal commands from next_action — HARD FAIL if the command fails.
     // The real test_results.json is written by these commands.
     await this.processNextActions(executeRes, projectPath, {
+      ...process.env,
       TESTSPRITE_API_KEY: apiKey,
       API_KEY: apiKey,
     });
