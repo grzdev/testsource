@@ -13,7 +13,9 @@ const execAsync = promisify(exec);
 
 const BASE_DIR = process.env.RUNNER_BASE_DIR ?? "/data/jobs";
 const JOB_TIMEOUT_MS = parseInt(process.env.JOB_TIMEOUT_MS ?? "900000", 10);
-const INSTALL_TIMEOUT_MS = parseInt(process.env.INSTALL_TIMEOUT_MS ?? "120000", 10);
+const CLONE_TIMEOUT_MS = parseInt(process.env.CLONE_TIMEOUT_MS ?? "300000", 10);
+const GIT_PREFLIGHT_TIMEOUT_MS = parseInt(process.env.GIT_PREFLIGHT_TIMEOUT_MS ?? "30000", 10);
+const INSTALL_TIMEOUT_MS = parseInt(process.env.INSTALL_TIMEOUT_MS ?? "600000", 10);
 const SERVER_START_TIMEOUT_MS = parseInt(process.env.SERVER_START_TIMEOUT_MS ?? "60000", 10);
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? "";
 
@@ -273,8 +275,8 @@ export async function runJob(jobId: string): Promise<void> {
       preflight.stderr.on("data", onD);
       const t = setTimeout(() => {
         preflight.kill("SIGKILL");
-        reject(new Error(`Runner cannot reach github.com over IPv4 (ls-remote timed out after 30 s). Check Railway outbound networking.`));
-      }, 30_000);
+        reject(new Error(`Runner cannot reach github.com over IPv4 (ls-remote timed out after ${GIT_PREFLIGHT_TIMEOUT_MS / 1000} s). Check Railway outbound networking.`));
+      }, GIT_PREFLIGHT_TIMEOUT_MS);
       preflight.on("close", (code) => {
         clearTimeout(t);
         if (code === 0 || code === 2) { resolve(); return; } // 2 = no branches (empty repo) — still reachable
@@ -322,8 +324,8 @@ export async function runJob(jobId: string): Promise<void> {
 
       const timeoutHandle = setTimeout(() => {
         child.kill("SIGKILL");
-        reject(new Error(`git clone timed out after 300 s for github.com/${owner}/${repo}`));
-      }, 300_000);
+        reject(new Error(`git clone timed out after ${CLONE_TIMEOUT_MS / 1000} s for github.com/${owner}/${repo}`));
+      }, CLONE_TIMEOUT_MS);
 
       child.on("error", (spawnErr) => {
         clearTimeout(timeoutHandle);
