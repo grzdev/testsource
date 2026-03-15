@@ -49,7 +49,6 @@ RUN npm prune --omit=dev
 # ── Data volume mount point ───────────────────────────────────────────────────
 RUN mkdir -p /data/jobs
 
-ENV NODE_ENV=production
 ENV PORT=3001
 ENV RUNNER_BASE_DIR=/data/jobs
 

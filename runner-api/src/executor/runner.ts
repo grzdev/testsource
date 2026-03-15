@@ -368,14 +368,33 @@ export async function runJob(jobId: string): Promise<void> {
       // ── Install dependencies ────────────────────────────────────────────
       setStage("Install dependencies");
       log(`> Installing dependencies with ${pm}...`);
+      const installEnv: NodeJS.ProcessEnv = {
+        ...process.env,
+        NODE_ENV: "development",
+        CI: "true",
+      };
       try {
         const installResult = await execAsync(
           `${pm} install --prefer-offline 2>&1`,
-          { cwd: workDir, timeout: INSTALL_TIMEOUT_MS }
+          { cwd: workDir, timeout: INSTALL_TIMEOUT_MS, env: installEnv }
         );
         if (installResult.stdout) log(`  ${installResult.stdout.slice(0, 300)}`);
       } catch (err: any) {
         log(`> Install warning: ${String(err.message).slice(0, 300)}`);
+      }
+
+      // Ensure TypeScript is present for Next.js repos that use next.config.ts
+      if (framework === "nextjs") {
+        try {
+          await fs.access(path.join(workDir, "node_modules", "typescript"));
+        } catch {
+          log(`> TypeScript missing after install — installing fallback...`);
+          try {
+            await execAsync(`${pm} install -D typescript 2>&1`, { cwd: workDir, timeout: 120_000, env: installEnv });
+          } catch (e: any) {
+            log(`> TypeScript fallback install warning: ${String(e.message).slice(0, 200)}`);
+          }
+        }
       }
 
       // ── Read README for project description ────────────────────────────
@@ -396,6 +415,7 @@ export async function runJob(jobId: string): Promise<void> {
       const { cmd, args } = startCmd;
       const spawnEnv: NodeJS.ProcessEnv = {
         ...process.env,
+        NODE_ENV: "development",
         FORCE_COLOR: "0",
         BROWSER: "none",
         CI: "true",
