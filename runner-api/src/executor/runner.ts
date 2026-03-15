@@ -115,7 +115,7 @@ function buildStartCmd(
     return {
       cmd: pm === "pnpm" ? "pnpm" : pm === "yarn" ? "yarn" : "npm",
       args: pm === "yarn" ? ["start"] : ["run", "start"],
-      env: { PORT: String(port), BROWSER: "none", CI: "true" },
+      env: { ...process.env, PORT: String(port), BROWSER: "none", CI: "true" },
     };
   }
   throw new Error(

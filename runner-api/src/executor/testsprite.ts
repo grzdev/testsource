@@ -267,6 +267,7 @@ export class TestSpriteApp {
     }
 
     await this.processNextActions(executeRes, projectPath, {
+      ...process.env,
       TESTSPRITE_API_KEY: apiKey,
       API_KEY: apiKey,
     });
@@ -482,7 +483,7 @@ export class TestSpriteApp {
   private async processNextActions(
     result: unknown,
     projectPath: string,
-    extraEnv: NodeJS.ProcessEnv = {}
+    extraEnv: Record<string, string | undefined> = {}
   ): Promise<void> {
     const text = this.extractText(result);
     const tmpDir = path.join(projectPath, "testsprite_tests", "tmp");

@@ -131,7 +131,7 @@ function buildStartCmd(
   pm: "pnpm" | "yarn" | "npm",
   scriptContent: string,
   port: number
-): { cmd: string; args: string[]; env?: NodeJS.ProcessEnv } {
+): { cmd: string; args: string[]; env?: Record<string, string | undefined> } {
   const exec = (bin: string, ...rest: string[]) =>
     pm === "pnpm" ? { cmd: "pnpm", args: ["exec", bin, ...rest] }
     : pm === "yarn" ? { cmd: "yarn", args: ["exec", bin, ...rest] }
@@ -336,7 +336,7 @@ export async function runTestSpriteJob(jobId: string, githubUrl: string) {
       const assignedPort = await findFreePort();
       const startCmd = buildStartCmd(framework, pm, scriptContent, assignedPort);
       const { cmd, args } = startCmd;
-      const spawnEnv: NodeJS.ProcessEnv = {
+      const spawnEnv: Record<string, string | undefined> = {
         ...process.env,
         FORCE_COLOR: "0",
         BROWSER: "none",
@@ -357,7 +357,7 @@ export async function runTestSpriteJob(jobId: string, githubUrl: string) {
       localServerProcess = spawn(cmd, args, {
         cwd: workDir,
         shell: process.platform === "win32",
-        env: spawnEnv,
+        env: spawnEnv as NodeJS.ProcessEnv,
       });
 
       const handleOutput = (data: Buffer) => {

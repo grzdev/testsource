@@ -427,7 +427,7 @@ export class TestSpriteApp {
   private async processNextActions(
     result: any,
     projectPath: string,
-    extraEnv: NodeJS.ProcessEnv = {}
+    extraEnv: Record<string, string | undefined> = {}
   ): Promise<void> {
     const text = this.extractText(result);
     const tmpDir = path.join(projectPath, "testsprite_tests", "tmp");
