@@ -71,14 +71,28 @@ async function waitForHtml(url: string, totalTimeoutMs: number, logFn: (m: strin
   return false;
 }
 
+// Ports currently bound by running dev servers — prevents collisions under concurrent jobs.
+const activePorts = new Set<number>();
+
 function findFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
-    const srv = http.createServer();
-    srv.listen(0, "127.0.0.1", () => {
-      const port = (srv.address() as any)?.port as number;
-      srv.close(() => resolve(port));
-    });
-    srv.on("error", reject);
+    const attempt = () => {
+      const srv = http.createServer();
+      srv.listen(0, "127.0.0.1", () => {
+        const port = (srv.address() as any)?.port as number;
+        srv.close(() => {
+          if (activePorts.has(port)) {
+            // Extremely rare — retry immediately to get a different port.
+            attempt();
+          } else {
+            activePorts.add(port);
+            resolve(port);
+          }
+        });
+      });
+      srv.on("error", reject);
+    };
+    attempt();
   });
 }
 
@@ -502,6 +516,7 @@ export async function runJob(jobId: string): Promise<void> {
       setStage("Start dev server");
       const scriptContent = pkg.scripts?.dev ?? pkg.scripts?.start ?? "";
       const assignedPort = await findFreePort();
+      (job as any).__assignedPort = assignedPort; // tracked for cleanup in finally
       const startCmd = buildStartCmd(framework, pm, scriptContent, assignedPort);
       const { cmd, args } = startCmd;
       const spawnEnv: NodeJS.ProcessEnv = {
@@ -754,6 +769,9 @@ For every FAILED test, provide in the result:
       log("> Stopping dev server...");
       try { localServerProcess.kill("SIGTERM"); } catch {}
     }
+    // Release reserved port so concurrent jobs can reuse it.
+    const assignedPortVal: number | undefined = (job as any).__assignedPort;
+    if (assignedPortVal) activePorts.delete(assignedPortVal);
     if (repoDir) {
       log("> Cleaning up workspace...");
       try {
