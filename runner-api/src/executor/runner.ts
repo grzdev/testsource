@@ -264,9 +264,11 @@ export async function runJob(jobId: string): Promise<void> {
     // ── IPv4 preflight: fast-fail if runner can't reach GitHub ────────────
     log(`> Preflight: checking connectivity to github.com over IPv4...`);
     await new Promise<void>((resolve, reject) => {
+      // Use curl -4 to test IPv4 reachability on port 443 — git -4 is not a
+      // valid global flag and ls-remote doesn't accept it as a sub-flag.
       const preflight = spawn(
-        "git",
-        ["-4", "ls-remote", "--exit-code", "--heads", cloneUrl],
+        "curl",
+        ["-4", "-I", "--max-time", String(Math.floor(GIT_PREFLIGHT_TIMEOUT_MS / 1000) - 5), "--silent", "--fail", "https://github.com"],
         { env: gitEnv, stdio: ["ignore", "pipe", "pipe"] }
       );
       let out = "";
@@ -275,21 +277,12 @@ export async function runJob(jobId: string): Promise<void> {
       preflight.stderr.on("data", onD);
       const t = setTimeout(() => {
         preflight.kill("SIGKILL");
-        reject(new Error(`Runner cannot reach github.com over IPv4 (ls-remote timed out after ${GIT_PREFLIGHT_TIMEOUT_MS / 1000} s). Check Railway outbound networking.`));
+        reject(new Error(`Runner cannot reach github.com over IPv4 (curl timed out after ${GIT_PREFLIGHT_TIMEOUT_MS / 1000} s). Check Railway outbound networking.`));
       }, GIT_PREFLIGHT_TIMEOUT_MS);
       preflight.on("close", (code) => {
         clearTimeout(t);
-        if (code === 0 || code === 2) { resolve(); return; } // 2 = no branches (empty repo) — still reachable
-        const lower = out.toLowerCase();
-        if (lower.includes("connection timed out") || lower.includes("could not resolve") || lower.includes("unable to access")) {
-          reject(new Error(`Runner cannot reach github.com over IPv4: ${out.trim().slice(0, 300)}. Check Railway outbound networking.`));
-        } else if (lower.includes("not found") || lower.includes("repository not found")) {
-          reject(new Error(`Repository not found: github.com/${owner}/${repo}.`));
-        } else if (lower.includes("authentication") || lower.includes("could not read username")) {
-          reject(new Error(`Git auth failed for github.com/${owner}/${repo}. Check GITHUB_TOKEN.`));
-        } else {
-          reject(new Error(`ls-remote failed (exit ${code}): ${out.trim().slice(0, 300)}`));
-        }
+        if (code === 0) { resolve(); return; }
+        reject(new Error(`Runner cannot reach github.com over IPv4 (curl exit ${code}): ${out.trim().slice(0, 300)}. Check Railway outbound networking.`));
       });
     });
     log(`> Preflight passed.`);
