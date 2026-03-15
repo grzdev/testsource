@@ -14,7 +14,6 @@ const execAsync = promisify(exec);
 const BASE_DIR = process.env.RUNNER_BASE_DIR ?? "/data/jobs";
 const JOB_TIMEOUT_MS = parseInt(process.env.JOB_TIMEOUT_MS ?? "900000", 10);
 const CLONE_TIMEOUT_MS = parseInt(process.env.CLONE_TIMEOUT_MS ?? "300000", 10);
-const GIT_PREFLIGHT_TIMEOUT_MS = parseInt(process.env.GIT_PREFLIGHT_TIMEOUT_MS ?? "30000", 10);
 const INSTALL_TIMEOUT_MS = parseInt(process.env.INSTALL_TIMEOUT_MS ?? "600000", 10);
 const SERVER_START_TIMEOUT_MS = parseInt(process.env.SERVER_START_TIMEOUT_MS ?? "60000", 10);
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? "";
@@ -216,9 +215,6 @@ export async function runJob(jobId: string): Promise<void> {
     }
 
     const repo = repoRaw.replace(/\.git$/, "");
-    const cloneUrl = GITHUB_TOKEN
-      ? `https://${GITHUB_TOKEN}@github.com/${owner}/${repo}`
-      : `https://github.com/${owner}/${repo}`;
 
     if (type === "issues") {
       throw new Error(
@@ -242,115 +238,90 @@ export async function runJob(jobId: string): Promise<void> {
       else log(`> No preview URL found in PR comments. Will run locally.`);
     }
 
-    // ── Clone ────────────────────────────────────────────────────────────
-    setStage("Clone repository");
-    // Clone into a named path — never into cwd '.', which can confuse git
+    // ── Download repo as tarball ──────────────────────────────────────────
+    // Using GitHub's archive/tarball API instead of git clone avoids all git
+    // transport layer issues (IPv6, packfile negotiation, etc.).
+    setStage("Download repository");
     repoDir = path.join(jobWorkspaceRoot, "repo");
-    // Ensure parent exists but NOT the repo dir itself — git creates it
-    await fs.mkdir(jobWorkspaceRoot, { recursive: true });
-    await fs.rm(repoDir, { recursive: true, force: true }); // clean slate
+    await fs.mkdir(repoDir, { recursive: true });
 
-    log(`> Clone target : ${repoDir}`);
-    log(`> Clone source : https://github.com/${owner}/${repo}`);
+    log(`> Download target: ${repoDir}`);
+    log(`> Repo           : https://github.com/${owner}/${repo}`);
 
-    const gitEnv: NodeJS.ProcessEnv = {
-      ...process.env,
-      GIT_TERMINAL_PROMPT: "0",
-      GIT_ASKPASS: "echo",
-      GIT_CONFIG_NOSYSTEM: "1",
-      LANG: "C",
-    };
+    // Resolve default branch from GitHub API so we can build the right tarball URL.
+    let defaultBranch = "main";
+    try {
+      const metaHeaders: Record<string, string> = {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      };
+      if (GITHUB_TOKEN) metaHeaders["Authorization"] = `Bearer ${GITHUB_TOKEN}`;
+      const metaRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers: metaHeaders });
+      if (metaRes.ok) {
+        const meta = await metaRes.json() as { default_branch?: string };
+        defaultBranch = meta.default_branch ?? "main";
+      }
+    } catch {}
+    log(`> Default branch : ${defaultBranch}`);
 
-    // ── IPv4 preflight: fast-fail if runner can't reach GitHub ────────────
-    log(`> Preflight: checking connectivity to github.com over IPv4...`);
+    // Build tarball URL. For PRs, pull the PR head ref.
+    let tarballUrl: string;
+    if (type === "pull" && numStr) {
+      // GitHub API tarball for PR head (redirects to codeload.github.com)
+      tarballUrl = `https://api.github.com/repos/${owner}/${repo}/tarball/pull/${numStr}/head`;
+    } else {
+      tarballUrl = `https://api.github.com/repos/${owner}/${repo}/tarball/${defaultBranch}`;
+    }
+
+    const archivePath = path.join(jobWorkspaceRoot, "repo.tar.gz");
+    const curlArgs = [
+      "-4",                  // force IPv4
+      "-L",                  // follow redirects (codeload.github.com)
+      "--max-time", String(Math.floor(CLONE_TIMEOUT_MS / 1000)),
+      "--retry", "2",
+      "--retry-delay", "3",
+      "--fail",
+      "--silent",
+      "--show-error",
+    ];
+    if (GITHUB_TOKEN) {
+      curlArgs.push("-H", `Authorization: Bearer ${GITHUB_TOKEN}`);
+    }
+    curlArgs.push("-H", "Accept: application/vnd.github+json");
+    curlArgs.push(tarballUrl, "-o", archivePath);
+
+    log(`> Downloading tarball (timeout ${CLONE_TIMEOUT_MS / 1000} s)...`);
     await new Promise<void>((resolve, reject) => {
-      // Use curl -4 to test IPv4 reachability on port 443 — git -4 is not a
-      // valid global flag and ls-remote doesn't accept it as a sub-flag.
-      const preflight = spawn(
-        "curl",
-        ["-4", "-I", "--max-time", String(Math.floor(GIT_PREFLIGHT_TIMEOUT_MS / 1000) - 5), "--silent", "--fail", "https://github.com"],
-        { env: gitEnv, stdio: ["ignore", "pipe", "pipe"] }
-      );
+      const dl = spawn("curl", curlArgs, { stdio: ["ignore", "pipe", "pipe"] });
       let out = "";
-      const onD = (d: Buffer) => { out += d.toString(); };
-      preflight.stdout.on("data", onD);
-      preflight.stderr.on("data", onD);
+      dl.stdout.on("data", (d: Buffer) => { out += d.toString(); });
+      dl.stderr.on("data", (d: Buffer) => { out += d.toString(); });
       const t = setTimeout(() => {
-        preflight.kill("SIGKILL");
-        reject(new Error(`Runner cannot reach github.com over IPv4 (curl timed out after ${GIT_PREFLIGHT_TIMEOUT_MS / 1000} s). Check Railway outbound networking.`));
-      }, GIT_PREFLIGHT_TIMEOUT_MS);
-      preflight.on("close", (code) => {
+        dl.kill("SIGKILL");
+        reject(new Error(`Tarball download timed out after ${CLONE_TIMEOUT_MS / 1000} s. Check Railway outbound networking.`));
+      }, CLONE_TIMEOUT_MS + 5_000);
+      dl.on("close", (code) => {
         clearTimeout(t);
         if (code === 0) { resolve(); return; }
-        reject(new Error(`Runner cannot reach github.com over IPv4 (curl exit ${code}): ${out.trim().slice(0, 300)}. Check Railway outbound networking.`));
-      });
-    });
-    log(`> Preflight passed.`);
-
-    // Use spawn so we stream ALL git output live
-    await new Promise<void>((resolve, reject) => {
-      const stripToken = (s: string) =>
-        s.replace(/https:\/\/[^@\s]+@github\.com/g, "https://github.com");
-
-      log(`> Running: git clone -4 --depth 1 --progress <url> ${repoDir}`);
-
-      const child = spawn(
-        "git",
-        ["clone", "-4", "--depth", "1", "--progress", "--no-tags", cloneUrl, repoDir],
-        // no cwd needed — repoDir is absolute, -4 forces IPv4
-        { env: gitEnv, stdio: ["ignore", "pipe", "pipe"] }
-      );
-
-      let allOutput = "";
-
-      const onData = (data: Buffer) => {
-        const line = stripToken(data.toString());
-        allOutput += line;
-        for (const l of line.split("\n")) {
-          const t = l.trim();
-          if (t) log(`  [git] ${t}`);
-        }
-      };
-
-      child.stdout.on("data", onData);
-      child.stderr.on("data", onData);
-
-      const timeoutHandle = setTimeout(() => {
-        child.kill("SIGKILL");
-        reject(new Error(`git clone timed out after ${CLONE_TIMEOUT_MS / 1000} s for github.com/${owner}/${repo}`));
-      }, CLONE_TIMEOUT_MS);
-
-      child.on("error", (spawnErr) => {
-        clearTimeout(timeoutHandle);
-        reject(new Error(`git spawn error: ${spawnErr.message}`));
-      });
-
-      child.on("close", (code) => {
-        clearTimeout(timeoutHandle);
-        if (code === 0) { resolve(); return; }
-        const msg = allOutput.trim() || `git exited with code ${code}`;
-        const lower = msg.toLowerCase();
-        if (lower.includes("not found") || lower.includes("does not exist")) {
-          reject(new Error(`Repository not found: github.com/${owner}/${repo}. Make sure it exists and is public (or your token has access).`));
-        } else if (lower.includes("authentication failed") || lower.includes("could not read username") || lower.includes("terminal prompts disabled")) {
-          reject(new Error(`Git authentication failed for github.com/${owner}/${repo}. Check that GITHUB_TOKEN on Railway is valid.`));
+        const msg = out.trim().slice(0, 400);
+        if (code === 22 || msg.includes("404")) {
+          reject(new Error(`Repository not found: github.com/${owner}/${repo}. Check it exists and is public (or GITHUB_TOKEN has access).`));
+        } else if (code === 28 || msg.includes("timed out") || msg.includes("Connection timed out")) {
+          reject(new Error(`Cannot reach github.com over IPv4 (curl exit 28). Check Railway outbound networking.`));
         } else {
-          reject(new Error(`Clone failed (exit ${code}) for github.com/${owner}/${repo}: ${msg.slice(0, 800)}`));
+          reject(new Error(`Tarball download failed (curl exit ${code}): ${msg}`));
         }
       });
     });
 
-    log(`> Clone complete.`);
-    if (type === "pull" && numStr) {
-      log(`> Checking out PR #${numStr}...`);
-      try {
-        await execAsync(`git fetch origin pull/${numStr}/head:pr-${numStr}`, { cwd: repoDir });
-        await execAsync(`git checkout pr-${numStr}`, { cwd: repoDir });
-        log(`> PR #${numStr} checked out.`);
-      } catch (err: unknown) {
-        log(`> Warning: could not checkout PR head: ${(err as Error).message}. Using default branch.`);
-      }
-    }
+    // Extract — GitHub tarballs wrap contents in a top-level directory like
+    // owner-repo-<sha>/, so --strip-components=1 puts files directly in repoDir.
+    log(`> Extracting archive...`);
+    await execAsync(`tar -xzf "${archivePath}" --strip-components=1 -C "${repoDir}"`);
+    await fs.rm(archivePath, { force: true });
+
+    log(`> Download complete.`);
+    // Note: PR head files are already in repoDir via the tarball — no git checkout needed.
 
     const workDir = subpath ? path.join(repoDir, subpath) : repoDir;
     if (subpath) log(`> Using subpath: ${subpath}`);
