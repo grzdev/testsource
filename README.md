@@ -1,4 +1,4 @@
-# TestSource — Open Source Testing Intelligence for TestSprite
+# TestSource 
 
 **TestSource** is a GitHub intelligence tool that analyzes any public repository, pull request, or issue and instantly tells you whether it is ready to test — and exactly how to test it with [TestSprite](https://testsprite.com).
 
@@ -7,8 +7,6 @@ Paste a GitHub link. Get a structured, signal-driven report in seconds.
 ---
 
 ## Demo
-
-🎥 **Demo Video:** [demo video.mp4](demo%20video.mp4)
 
 🌐 **Live App:** https://testsource.netlify.app/
 
