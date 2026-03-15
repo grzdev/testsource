@@ -8,8 +8,6 @@ Paste a GitHub link. Get a structured, signal-driven report in seconds.
 
 ## Demo
 
-🎥 **Demo Video:** [demo video.mp4](demo%20video.mp4)
-
 🌐 **Live App:** https://testsource.netlify.app/
 
 ---
