@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, CheckCircle2, XCircle, Circle, Terminal, GitPullRequest as GitPullRequestIcon, CircleDot, GitBranch as GitBranchIcon } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Circle, Terminal, GitPullRequest as GitPullRequestIcon, CircleDot, GitBranch as GitBranchIcon, RefreshCw } from 'lucide-react';
 import type { JobState } from '@/lib/jobs';
 
 // Canonical pipeline stage order — must match setStage() calls in lib/jobs.ts + lib/testsprite-mcp.ts
@@ -80,9 +80,16 @@ interface Props {
 export default function TestSpriteRunner({ githubUrl }: Props) {
   const [jobId, setJobId]       = useState<string | null>(null);
   const [jobState, setJobState] = useState<JobState | null>(null);
+  const [restartKey, setRestartKey] = useState(0);
   // Ref on the scrollable log panel div (not a child element) so scrollTop only
   // scrolls within the panel and never jumps the browser viewport.
   const logPanelRef = useRef<HTMLDivElement>(null);
+
+  function handleRestart() {
+    setJobId(null);
+    setJobState(null);
+    setRestartKey(k => k + 1);
+  }
 
   // Derive URL type from prop — no state needed for this check
   const invalidUrlType: 'issue' | 'pr' | null = (() => {
@@ -132,7 +139,7 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
       }
     })();
     return () => { active = false; };
-  }, [githubUrl, invalidUrlType]);
+  }, [githubUrl, invalidUrlType, restartKey]);
 
   // Polling loop
   useEffect(() => {
@@ -257,15 +264,14 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
             <span className="text-xs text-slate-500 font-mono ml-1">{jobState.stage}</span>
           )}
         </div>
-        {jobState.proxyUrl && (
-          <a
-            href={jobState.proxyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-sky-300 bg-sky-500/10 border border-sky-500/20 rounded-lg hover:bg-sky-500/20 transition-colors"
+        {isFailed && (
+          <button
+            onClick={handleRestart}
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors"
           >
-            Open TestSprite Dashboard ↗
-          </a>
+            <RefreshCw className="w-3 h-3" />
+            Retry
+          </button>
         )}
       </div>
 
@@ -381,16 +387,6 @@ export default function TestSpriteRunner({ githubUrl }: Props) {
                 {worthiness.label}
               </span>
             </div>
-            {(jobState.proxyUrl ?? jobState.results?.dashboardUrl) && (
-              <a
-                href={jobState.proxyUrl ?? jobState.results.dashboardUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-sky-300 bg-sky-500/10 border border-sky-500/20 rounded-lg hover:bg-sky-500/20 transition-colors"
-              >
-                Open TestSprite Dashboard ↗
-              </a>
-            )}
           </div>
 
           {/* Contributor assessment line */}
