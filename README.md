@@ -12,7 +12,7 @@ Paste a GitHub link. Get a structured report in seconds.
 
 ## Demo
 
-🌐 **Live App:** https://testsource.netlify.app/?
+🌐 **Live App:** https://testsource.netlify.app/
 
 <img width="2523" height="1325" alt="Screenshot 2026-03-15 150414" src="https://github.com/user-attachments/assets/6c20d40c-5bf6-4a92-ad6b-14513fd454f1" />
 
